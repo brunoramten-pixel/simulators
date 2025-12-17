@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SIMULADOR CLÍNICO AVANZADO - ECG con Sonido (modificado: T. Brennan - v3) - RESET TIEMPO</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui, "Segoe UI", Roboto, sans-serif;background:#f5f6fa;color:#2c3e50;font-size:13px}
+.medical-header{background:linear-gradient(135deg,#2c3e50,#34495e);color:#fff;padding:8px 0;position:fixed;top:0;left:0;right:0;z-index:100}
+.header-content{max-width:1400px;margin:0 auto;padding:0 15px;display:flex;justify-content:space-between;align-items:center}
+.system-title{font-size:1.3em;font-weight:700}
+.timer-bar{position:fixed;top:50px;left:0;right:0;background:#fff;padding:8px 15px;box-shadow:0 1px 4px rgba(0,0,0,0.08);z-index:99;display:flex;justify-content:space-between;align-items:center}
+.main-timer{background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;padding:8px 15px;border-radius:4px;font-size:1.6em;font-weight:700;font-family:"Courier New",monospace;min-width:120px;text-align:center}
+.main-timer.critical{animation:criticalFlash 1s infinite}
+@keyframes criticalFlash{0%,50%{opacity:1}51%,100%{opacity:.6}}
+.critical-alert{background:#dc3545;color:#fff;padding:6px 12px;border-radius:15px;font-weight:600;font-size:.9em;animation:alertPulse 2s infinite}
+@keyframes alertPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.main-container{margin-top:95px;max-width:1400px;margin-left:auto;margin-right:auto;padding:10px;display:grid;grid-template-columns:1.3fr 1fr;gap:15px;min-height:calc(100vh - 105px)}
+.panel{background:#fff;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.08);display:flex;flex-direction:column;overflow:hidden}
+.panel-header{color:#fff;padding:10px 15px;font-size:1em;font-weight:600}
+.patient-header{background:linear-gradient(135deg,#3498db,#2980b9)}
+.treatment-header{background:linear-gradient(135deg,#27ae60,#229954)}
+.panel-content{padding:12px;flex:1;overflow:auto}
+.info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.info-card{background:#f8f9fa;padding:6px;border-radius:4px;text-align:center;border-left:2px solid #3498db}
+.info-label{font-size:.7em;color:#666;text-transform:uppercase;letter-spacing:.3px}
+.info-value{font-size:.85em;font-weight:600;color:#2c3e50;margin-top:1px}
+.patient-visual-container{display:grid;grid-template-columns:140px 1fr;gap:15px;margin:10px 0;height:180px}
+.patient-visual{display:flex;justify-content:center;align-items:center;background:#f8f9fa;border-radius:6px;padding:10px;position:relative}
+.ecg-monitor{background:#000;border-radius:6px;padding:10px;position:relative;border:2px solid #222}
+.ecg-header{color:#00ff00;font-family:"Courier New",monospace;font-size:.8em;text-align:center;margin-bottom:6px}
+.ecg-layer{position:relative;height:120px}
+canvas#ecgCanvas{width:100%;height:120px;background:#000;border-radius:2px;display:block}
+.ecg-info{color:#00ff00;font-family:"Courier New",monospace;font-size:.7em;text-align:center;margin-top:6px}
+.ecg-led{position:absolute;top:8px;right:8px;width:10px;height:10px;border-radius:50%;box-shadow:0 0 6px #00ff00;background:#00ff00}
+.sound-controls{display:flex;gap:8px;align-items:center;margin-top:8px;color:#fff}
+.sound-btn{background:linear-gradient(135deg,#444,#222);padding:6px 8px;border-radius:6px;border:1px solid #666;cursor:pointer;color:#fff}
+.sound-label{font-size:.8em;color:#ddd;margin-right:6px}
+input[type="range"]{appearance:none;height:6px;border-radius:6px;background:#333;outline:none}
+input[type="range"]::-webkit-slider-thumb{appearance:none;width:14px;height:14px;border-radius:50%;background:#00ff66;cursor:pointer;border:2px solid #fff}
+.body-silhouette{width:100px;height:160px;position:relative;display:block}
+.body-part{position:absolute;border:2px solid #34495e;border-radius:4px;transform-origin:center center}
+.head{width:25px;height:30px;background:#27ae60;border-radius:50%;top:0;left:50%;transform:translate(-50%,0)}
+.torso{width:35px;height:50px;background:#2ecc71;top:30px;left:50%;transform:translate(-50%,0);border-radius:8px}
+.arm-left,.arm-right{width:12px;height:40px;background:#27ae60;top:35px;border-radius:6px}
+.arm-left{left:10px} .arm-right{right:10px}
+.leg-left,.leg-right{width:14px;height:60px;background:#2ecc71;border-radius:6px;bottom:0}
+.leg-left{left:28px} .leg-right{right:28px}
+.compact-vitals{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}
+.vital-compact{background:#000;color:#00ff00;padding:8px;border-radius:4px;font-family:"Courier New",monospace;position:relative;border:1px solid #333;text-align:center}
+.vital-compact.critical{color:#ff0000;border-color:#dc3545;animation:criticalAlarm 1.5s infinite}
+@keyframes criticalAlarm{0%,50%{background:#000}51%,100%{background:#220000}}
+.vital-value-compact{font-size:1.1em;font-weight:700} .vital-label-compact{font-size:.65em;opacity:.8;margin-top:2px}
+.pain-meter-compact{background:linear-gradient(135deg,#dc3545,#8b0000);color:#fff;padding:8px;border-radius:4px;text-align:center;margin:8px 0}
+.pain-scale-compact{font-size:1.8em;font-weight:700}
+/* --- cambios: sintomas siempre visibles --- */
+.symptoms-timeline{background:#f8f9fa;border-radius:4px;padding:8px;margin:8px 0;border-left:3px solid #3498db; /* quitar max-height/scroll */}
+.symptom-group{margin-bottom:6px;padding:6px;background:#fff;border-radius:3px;border-left:2px solid #dee2e6;opacity:0.95}
+.symptom-group.active{border-left-color:#e74c3e;background:#fff5f5}
+.form-group{margin-bottom:10px} .form-label{display:block;margin-bottom:4px;font-weight:600;color:#34495e;font-size:.85em} .form-control{width:100%;padding:6px 8px;border:1px solid #dee2e6;border-radius:3px;font-size:.8em}
+.btn{background:linear-gradient(135deg,#27ae60,#229954);color:#fff;border:0;padding:8px 12px;border-radius:3px;font-size:.8em;font-weight:600;cursor:pointer}
+.btn.urgent{background:linear-gradient(135deg,#dc3545,#8b0000);animation:urgentPulse 2s infinite}
+@keyframes urgentPulse{0%,100%{box-shadow:0 1px 2px rgba(220,53,69,.3)}50%{box-shadow:0 2px 6px rgba(220,53,69,.6)}}
+.pharmacology-alert{padding:8px;border-radius:3px;margin:6px 0;font-size:.75em;font-weight:600}
+.alert-success{background:#ccf2e8;border:1px solid #99e6d1;color:#155724}
+.alert-warning{background:#fff3cd;border:1px solid #ffeaa7;color:#856404}
+.alert-danger{background:#f8d7da;border:1px solid #f5c6cb;color:#721c24}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(44,62,80,.95);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-content{background:#fff;padding:20px;border-radius:6px;max-width:800px;width:90%;max-height:80vh;overflow:auto;text-align:center}
+.success-result{background:linear-gradient(135deg,#27ae60,#229954);color:#fff;padding:15px;border-radius:6px;margin:10px 0}
+.failure-result{background:linear-gradient(135deg,#e74c3e,#c0392b);color:#fff;padding:15px;border-radius:6px;margin:10px 0}
+.result-icon{font-size:3em;margin:10px 0}
+.paused-overlay{position:absolute;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.9);font-weight:700;font-size:1.2em;pointer-events:none}
+.patient-history{background:#fff;padding:8px;border-radius:6px;border:1px solid #e6eef7;margin:10px 0}
+.patient-history h4{margin-bottom:6px;font-size:.9em}
+@media (max-width:900px){ .main-container{grid-template-columns:1fr} .header-content{flex-direction:column;gap:6px} }
+</style>
+</head>
+<body>
+<div class="medical-header">
+  <div class="header-content">
+    <div>
+      <div class="system-title">SIMULADOR FARMACOLÓGICO AVANZADO</div>
+      <div style="font-size:.8em;opacity:.9">Escuela de Medicina | Farmacología Clínica de Emergencia</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:.8em"></div>
+      <div style="font-size:.7em;opacity:.8">Protocolo: Analgesia de Emergencia</div>
+    </div>
+  </div>
+</div>
+
+<div class="timer-bar">
+  <div class="main-timer" id="mainTimer">05:00</div>
+  <div style="display:flex;gap:12px;align-items:center">
+    <div style="color:#666;font-size:.9em">Estado: <span id="patientStatus">Evaluación inicial</span></div>
+  </div>
+</div>
+
+<div class="main-container">
+  <div class="panel patient-panel">
+    <div class="panel-header patient-header">MONITOREO DEL PACIENTE</div>
+    <div class="panel-content">
+      <div class="info-grid">
+        <div class="info-card"><div class="info-label">Paciente</div><div class="info-value">T. Brennan</div></div>
+        <div class="info-card"><div class="info-label">Edad</div><div class="info-value">16 años</div></div>
+        <div class="info-card"><div class="info-label">Peso</div><div class="info-value">45 kg</div></div>
+        <div class="info-card"><div class="info-label">Talla</div><div class="info-value">1.52 m</div></div>
+      </div>
+
+      <div class="patient-visual-container">
+        <div class="patient-visual" id="visualWrap">
+          <div class="body-silhouette" id="patientBody">
+            <div class="body-part head" id="partHead"></div>
+            <div class="body-part torso" id="partTorso"></div>
+            <div class="body-part arm-left" id="partArmL"></div>
+            <div class="body-part arm-right" id="partArmR"></div>
+            <div class="body-part leg-left" id="partLegL"></div>
+            <div class="body-part leg-right" id="partLegR"></div>
+          </div>
+        </div>
+
+        <div class="ecg-monitor" id="ecgMonitor">
+          <div class="ecg-led" id="ecgLed"></div>
+          <div class="ecg-header">ELECTROCARDIOGRAMA</div>
+          <div class="ecg-layer">
+            <canvas id="ecgCanvas" width="800" height="120"></canvas>
+            <div class="paused-overlay" id="ecgPaused" style="display:none">PAUSADO</div>
+          </div>
+          <div class="ecg-info">FC: <span id="ecgRate">85</span> lpm | Ritmo: <span id="ecgRhythm">Sinusal</span></div>
+
+          <div class="sound-controls" style="position:relative;margin-top:10px">
+            <div class="sound-label">Sonido monitor:</div>
+            <button id="soundToggle" class="sound-btn">Activar</button>
+            <div style="display:flex;align-items:center;margin-left:8px">
+              <input id="soundVolume" type="range" min="0" max="1" step="0.01" value="0.6" style="width:120px" title="Volumen"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pain-meter-compact">
+        <div style="font-size:.8em">ESCALA ANÁLOGA VISUAL</div>
+        <div class="pain-scale-compact" id="painScore">0</div>
+        <div style="font-size:.7em">No refiere dolor (insensibilidad congénita)</div>
+      </div>
+
+      <div class="compact-vitals">
+        <div class="vital-compact" id="hrMonitor"><div class="vital-value-compact" id="heartRate">85</div><div class="vital-label-compact">FC (lpm)</div></div>
+        <div class="vital-compact" id="bpMonitor"><div class="vital-value-compact" id="bloodPressure">140/90</div><div class="vital-label-compact">PA (mmHg)</div></div>
+        <div class="vital-compact" id="tempMonitor"><div class="vital-value-compact" id="temperature">36.8</div><div class="vital-label-compact">TEMP (°C)</div></div>
+        <div class="vital-compact" id="spo2Monitor"><div class="vital-value-compact" id="oxygenSat">97</div><div class="vital-label-compact">SpO₂ (%)</div></div>
+      </div>
+
+      <!-- Antecedentes añadidos -->
+      <div class="patient-history" id="patientHistory">
+        <h4>Antecedentes personales</h4>
+        <ul style="margin-left:14px">
+          
+          <li>Buena alimentación</li>
+          <li>Traumatismo por accidente de tránsito (trasladada desde la escena)</li>
+          <li>Insensibilidad congénita al dolor</li>
+          <li>No refiere antecedentes médicos crónicos conocidos</li>
+        </ul>
+      </div>
+
+      <div class="symptoms-timeline">
+        <h4 style="margin-bottom:8px;color:#2c3e50;font-size:.9em">EVOLUCIÓN CLÍNICA</h4>
+        <div id="symptomsContainer">
+          <div class="symptom-group active">
+            <div class="time-stamp">T+00:00 - Ingreso</div>
+            <div class="symptom-list">• Dolor severo pierna derecha (EVA: 10/10)<br>• Paciente agitado, diaforético<br>• ORINA COLOR CAFÉ</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="panel treatment-panel">
+    <div class="panel-header treatment-header">PROTOCOLO FARMACOLÓGICO</div>
+    <div class="panel-content">
+      
+
+      <div class="form-group">
+        <label class="form-label">Selección farmacológica:<\/label>
+        <select class="form-control" id="drugSelection">
+          <option value="">-- Seleccionar fármaco --</option>
+          <option value="oxicodona">Oxicodona</option>
+          <option value="morfina">Morfina</option>
+          <option value="tramadol">Tramadol</option>
+          <option value="ketorolaco">Ketorolaco</option>
+          <option value="fentanilo">Fentanilo</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="display:flex;gap:8px;align-items:center">
+        <div style="flex:1">
+          <label class="form-label">Dosis (número):</label>
+          <input class="form-control" id="drugDose" type="number" min="0.1" max="10000" step="0.1" placeholder="Dosis" />
+        </div>
+        <div style="width:70px;margin-top:22px;text-align:left"><span id="doseUnit">mg</span></div>
+      </div>
+
+      <button class="btn urgent" id="administerDrug">ADMINISTRAR MEDICAMENTO</button>
+      <div id="drugEffects" style="display:none;margin-top:8px"></div>
+
+      <hr style="margin:12px 0;border:1px solid #dee2e6">
+
+      <div class="form-group">
+        <label class="form-label">Diagnóstico Diferencial:</label>
+        <select class="form-control" id="diagnosis">
+          <option value="">-- Seleccionar diagnóstico --</option>
+          <option value="neuropatia_congenita">Neuropatía congénita pura</option>
+          <option value="tormenta_tiroidea">Tormenta tiroidea</option>
+          <option value="guillain_barre">Guillain-Barré</option>
+          <option value="anemia_megaloblastica">Anemia megaloblástica</option>
+          <option value="solitaria">Solitaria</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <fieldset style="border:1px solid #e6eef7;padding:12px;border-radius:6px;background:#fbfcfe">
+          <legend style="font-weight:700;padding:0 6px">Estudios de laboratorio</legend>
+          <div style="display:flex;flex-direction:column;gap:8px;padding-top:6px">
+            <label><input type="checkbox" name="labs" value="bh" class="labCheckbox"> <strong>Biometría hemática</strong></label>
+            <label><input type="checkbox" name="labs" value="rm" class="labCheckbox"> <strong>Resonancia magnética</strong></label>
+            <label><input type="checkbox" name="labs" value="frotis" class="labCheckbox"> <strong>Frotis sanguíneo</strong></label>
+            <label><input type="checkbox" name="labs" value="rx" class="labCheckbox"> <strong>Rayos X</strong></label>
+            <label><input type="checkbox" name="labs" value="b12" class="labCheckbox"> <strong>Niveles séricos de vitamina B12, B9 (folato) y hierro</strong></label>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+            <button id="confirmLabs" class="btn">Confirmar estudios de laboratorio</button>
+            <div id="labStatus" style="font-size:.85em;color:#666">Seleccione los estudios y presione confirmar.</div>
+          </div>
+          <div id="labResults" style="margin-top:10px;display:none;background:#fff;padding:10px;border-radius:6px;border:1px solid #e9f3ff"></div>
+        </fieldset>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tratamiento Definitivo:</label>
+        <select class="form-control" id="definiteTreatment">
+          <option value="">-- Seleccionar intervención --</option>
+          <!-- Se han eliminado las opciones solicitadas (Desbridamiento/necrose, Revascularización, Fasciotomía, Amputación) -->
+          <option value="praziquantel">Praziquantel</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Seguimiento:</label>
+        <select class="form-control" id="followUp">
+          <option value="">-- Seleccionar seguimiento --</option>
+          <option value="albendazol_c4h_2s">Albendazol — cada 4 horas por 2 semanas</option>
+          <option value="mebendazol_c8h_1s">Mebendazol — cada 8 horas por 1 semana</option>
+          <option value="albendazol_c6h_1m">Albendazol — cada 6 horas por 1 mes</option>
+          <option value="albendazol_2xdia_1mes">Albendazol — 2 pastillas al día por 1 mes</option>
+        </select>
+      </div>
+
+      <button class="btn" id="submitTreatment">CONFIRMAR PLAN TERAPÉUTICO</button>
+      <div id="treatmentResponse" style="display:none;margin-top:8px"></div>
+
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="resultModal">
+  <div class="modal-content">
+    <h2 id="modalTitle">Resultado</h2>
+    <div id="modalContent"></div>
+    <button class="btn" id="newSimBtn">Nueva Simulación</button>
+  </div>
+</div>
+
+<script>
+/* ECG integrado con sonido: sube 25 lpm cada minuto, parte en 85 lpm.
+   Sonido del monitor: click/beep en cada QRS. Hay control para activar y ajustar volumen.
+*/
+(function(){
+  const canvas = document.getElementById('ecgCanvas');
+  const ctx = canvas.getContext('2d');
+  const parent = canvas.parentElement;
+  let dpr = window.devicePixelRatio || 1;
+
+  // audio
+  let audioCtx = null;
+  let masterGain = null;
+  let soundEnabled = false;
+  const defaultVolume = 0.6;
+
+  function ensureAudio(){ // create/resume audio context on user gesture
+    if (!audioCtx){
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = defaultVolume;
+        masterGain.connect(audioCtx.destination);
+      } catch(e){
+        console.warn('AudioContext no soportado', e);
+      }
+    } else if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function setVolume(v){
+    if (masterGain) masterGain.gain.value = v;
+  }
+
+  function playBeep(){
+    if (!soundEnabled) return;
+    ensureAudio();
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    // short click-like beep: two oscillators for richer sound
+    const o1 = audioCtx.createOscillator();
+    const g1 = audioCtx.createGain();
+    o1.type = 'sine';
+    o1.frequency.value = 900;
+    g1.gain.setValueAtTime(0, now);
+    g1.gain.linearRampToValueAtTime(0.9, now + 0.002);
+    g1.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    o1.connect(g1);
+    g1.connect(masterGain);
+
+    const o2 = audioCtx.createOscillator();
+    const g2 = audioCtx.createGain();
+    o2.type = 'triangle';
+    o2.frequency.value = 1300;
+    g2.gain.setValueAtTime(0, now);
+    g2.gain.linearRampToValueAtTime(0.5, now + 0.002);
+    g2.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+    o2.connect(g2);
+    g2.connect(masterGain);
+
+    o1.start(now);
+    o2.start(now);
+    o1.stop(now + 0.1);
+    o2.stop(now + 0.12);
+  }
+
+  // ECG drawing state
+  let isRunning = false;
+  let raf = null;
+  let ecgStartTime = 0; // timestamp when ECG started
+  let lastFrame = 0;
+  let writeX = 0;
+  let ecgData = [];
+  let totalBeats = 0;
+
+  const ecgPattern = [0,0,0,0.02,0.04,0.08,0.12,0.08,0.03,0,-0.05,-0.12,-0.06,0,0.15,0.8,1.0,0.78,0.28,-0.15,-0.45,-0.18,0.05,0.22,0.14,0.06,0.02,0,0,0,0,0,0];
+  const sampleSpacing = 3;
+
+  function resizeCanvas(){
+    const rect = parent.getBoundingClientRect();
+    const cssW = Math.max(240, Math.floor(rect.width));
+    const cssH = Math.max(80, Math.floor(rect.height));
+    dpr = window.devicePixelRatio || 1;
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const visibleLeft = writeX - cssW;
+    ecgData = ecgData.filter(p => p.x >= visibleLeft - 120);
+  }
+
+  function discreteBPM(secondsElapsed){
+    const minutes = Math.floor(secondsElapsed / 60);
+    return 85 + 25 * minutes;
+  }
+
+  function clearCanvas(){
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,canvas.width/dpr, canvas.height/dpr);
+  }
+
+  function frame(ts){
+    if (!lastFrame) lastFrame = ts;
+    const dt = (ts - lastFrame) / 1000;
+    lastFrame = ts;
+
+    if (isRunning){
+      const elapsedSec = (ts - ecgStartTime) / 1000;
+      // si forceHR tiene valor, lo usamos; en caso contrario calculamos según patrón
+      const hr = (forceHR !== null) ? forceHR : discreteBPM(elapsedSec);
+      const beatInterval = 60 / hr;
+      const pxPerBeat = ecgPattern.length * sampleSpacing;
+      const pixelPerSecond = pxPerBeat / beatInterval;
+      writeX += pixelPerSecond * dt;
+
+      // expected beats since ECG start (use floor to avoid drift)
+      const expectedBeats = Math.floor(elapsedSec / beatInterval) + 1;
+      while (totalBeats < expectedBeats){
+        const baseX = writeX;
+        const centerY = (canvas.height / dpr) / 2;
+        for (let i=0;i<ecgPattern.length;i++){
+          const px = baseX + i * sampleSpacing;
+          const vy = centerY + (-ecgPattern[i] * ((canvas.height/dpr) * 0.28));
+          ecgData.push({x: px, y: vy});
+        }
+        totalBeats++;
+        // play sound for this beat (if enabled)
+        try { playBeep(); } catch(e){ console.warn('error playing beep', e); }
+      }
+
+      const centerY = (canvas.height / dpr) / 2;
+      ecgData.push({x: writeX, y: centerY});
+
+      const visibleLeft = writeX - (canvas.width / dpr);
+      ecgData = ecgData.filter(p => p.x >= visibleLeft - 80);
+
+      clearCanvas();
+      if (ecgData.length > 1){
+        ctx.beginPath();
+        const offset = writeX - (canvas.width / dpr);
+        ctx.moveTo(ecgData[0].x - offset, ecgData[0].y);
+        for (let i=1;i<ecgData.length;i++){
+          ctx.lineTo(ecgData[i].x - offset, ecgData[i].y);
+        }
+        ctx.strokeStyle = '#00ff66';
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.shadowColor = '#00ff66';
+        ctx.shadowBlur = 6;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      // update UI
+      document.getElementById('ecgRate').textContent = Math.round(hr);
+      document.getElementById('heartRate').textContent = Math.round(hr);
+      if (hr > 150) document.getElementById('ecgRhythm').textContent = 'Taquicardia';
+      else if (hr < 60) document.getElementById('ecgRhythm').textContent = 'Bradicardia';
+      else document.getElementById('ecgRhythm').textContent = 'Sinusal';
+    }
+    raf = requestAnimationFrame(frame);
+  }
+
+  function init(){
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    raf = requestAnimationFrame(frame);
+  }
+
+  function start(){
+    if (!isRunning){
+      isRunning = true;
+      ecgStartTime = performance.now();
+      lastFrame = performance.now();
+      writeX = 0;
+      ecgData = [];
+      totalBeats = 0;
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function stop(){ isRunning = false; }
+  function reset(){
+    stop();
+    lastFrame = 0;
+    writeX = 0;
+    ecgData = [];
+    totalBeats = 0;
+    clearCanvas();
+    document.getElementById('ecgRate').textContent = '85';
+    document.getElementById('heartRate').textContent = '85';
+    document.getElementById('ecgRhythm').textContent = 'Sinusal';
+  }
+
+  // sound control UI wiring
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('soundToggle');
+    const vol = document.getElementById('soundVolume');
+    btn.addEventListener('click', () => {
+      if (!soundEnabled){
+        ensureAudio();
+        setTimeout(() => {
+          soundEnabled = true;
+          btn.textContent = 'Sonido ON';
+          btn.style.background = 'linear-gradient(135deg,#0b6623,#0f9d58)';
+        }, 80);
+      } else {
+        soundEnabled = false;
+        btn.textContent = 'Activar';
+        btn.style.background = '';
+      }
+    });
+    vol.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      setVolume(v);
+    });
+  });
+
+  // expose module
+  window.ECGSim = { init, start, stop, reset };
+
+})();
+
+/* Rest of simulation (modificado según requerimiento) */
+let gameTime = 300;
+let elapsedTime = 0;
+let gameRunning = false;
+let gameTimer = null;
+let analgesicAdministered = false; // true solo si dosis correcta
+let remainingHalved = false;
+// nuevos estados para control de ritmo en eventos especiales
+let simulationFailed = false; // se activará si el caso falla
+let forceHR = null; // si no es null, fuerza la frecuencia cardiaca (lpm) en el ECG
+
+function addSymptom(timestamp, symptoms) {
+  const container = document.getElementById('symptomsContainer');
+  if (!container) return;
+  const div = document.createElement('div');
+  div.className = 'symptom-group new';
+  const symptomsHTML = symptoms.map(s => `• ${s}`).join('<br>');
+  div.innerHTML = `\n    <div class="time-stamp">${timestamp}</div>\n    <div class="symptom-list">${symptomsHTML}</div>\n  `;
+  container.appendChild(div);
+  // no forzamos scroll: síntomas siempre visibles y la lista crece hacia abajo
+  setTimeout(() => { div.classList.remove('new'); }, 2000);
+}
+
+function updateVitals(hr, bp, temp, spo2) {
+  document.getElementById('heartRate').textContent = hr;
+  document.getElementById('bloodPressure').textContent = bp;
+  document.getElementById('temperature').textContent = (typeof temp === 'number') ? temp.toFixed(1) : temp;
+  document.getElementById('oxygenSat').textContent = spo2;
+
+  const hrEl = document.getElementById('hrMonitor');
+  const spo2El = document.getElementById('spo2Monitor');
+  if (hr >= 130) hrEl.classList.add('critical'); else hrEl.classList.remove('critical');
+  if (spo2 < 92) spo2El.classList.add('critical'); else spo2El.classList.remove('critical');
+}
+
+function showAlert(type, message) {
+  const effectsDiv = document.getElementById('drugEffects');
+  effectsDiv.style.display = 'block';
+  effectsDiv.innerHTML = `<div class="pharmacology-alert alert-${type}">${message}</div>`;
+}
+
+function formatTime(seconds) {
+  const mm = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const ss = (seconds % 60).toString().padStart(2, '0');
+  return `T+${mm}:${ss}`;
+}
+
+function checkTimedEvents() {
+  // Eventos temporizados modificados según protocolo solicitado
+  if (elapsedTime === 0) {
+    // inicio: accidente, sin dolor, hipotermia y taquicardia
+    addSymptom('T+00:00', [
+      'Accidente de tránsito (ingreso desde la escena)',
+      'No refiere dolor (insensibilidad congénita al dolor)',
+      'Hipotermia presente',
+      'Taquicardia inicial'
+    ]);
+    updateVitals(120, '110/70', 35.5, 96);
+  } else if (elapsedTime === 60) {
+    // T+01:00: temperatura fluctuante y disautonomía leve
+    addSymptom('T+01:00', [
+      'Temperatura corporal fluctuante entre 35°C y 39°C',
+      'Disautonomía leve (sudoración, taquicardia variable, labilidad vasomotora)'
+    ]);
+    // mostramos un valor intermedio en los signos vitales
+    updateVitals(110, '120/75', 36.8, 95);
+  } else if (elapsedTime === 120) {
+    // T+02:00: signos neurológicos, palidez y cansancio
+    addSymptom('T+02:00', [
+      'Signos neurológicos (confusión, alteración de la conciencia leve)',
+      'Palidez',
+      'Cansancio extremo'
+    ]);
+    updateVitals(130, '115/70', 36.5, 94);
+    document.getElementById('patientStatus').textContent = 'Deterioro neurológico';
+  } else if (elapsedTime === 240) {
+    // T+04:00: alucinaciones y taquicardia extrema >180 lpm
+    addSymptom('T+04:00', [
+      'Alucinaciones',
+      'Taquicardia extrema (>180 lpm)'
+    ]);
+    updateVitals(190, '160/100', 37.9, 90);
+    document.getElementById('patientStatus').textContent = 'Agitación severa';
+  } else if (elapsedTime === 270) {
+    // últimos 30 segundos: coma
+    addSymptom('T+04:30', [
+      'ÚLTIMOS 30s: Coma'
+    ]);
+    updateVitals(40, '80/50', 35.0, 70);
+    document.getElementById('patientStatus').textContent = 'Coma';
+    // marcar estado grave para forzar cambios en ECG
+    simulationFailed = true;
+    forceHR = 30;
+    document.getElementById('ecgRate').textContent = 30;
+    document.getElementById('heartRate').textContent = 30;
+  }
+}
+
+function startSimulation() {
+  gameRunning = true;
+  gameTime = 300;
+  elapsedTime = 0;
+  analgesicAdministered = false;
+  remainingHalved = false;
+  document.getElementById('painScore').textContent = '0';
+  document.getElementById('patientStatus').textContent = 'Evaluación inicial';
+  const container = document.getElementById('symptomsContainer');
+  container.innerHTML = `
+    <div class="symptom-group active">
+      <div class="time-stamp">T+00:00 - Escena</div>
+      <div class="symptom-list">• Accidente de tránsito (ingreso desde la escena)<br>• No refiere dolor (insensibilidad congénita)<br>• Hipotermia presente<br>• Taquicardia inicial</div>
+    </div>
+  `;
+
+  if (gameTimer) clearInterval(gameTimer);
+  gameTimer = setInterval(() => {
+    if (!gameRunning) return;
+    gameTime--;
+    elapsedTime = 300 - gameTime;
+    updateTimerUI();
+    checkTimedEvents();
+    // temperatura fluctuante después de T+01:00
+    if (elapsedTime >= 60 && elapsedTime < 270) {
+      const minT = 35.6, maxT = 39.4;
+      const temp = Math.round((Math.random() * (maxT - minT) + minT) * 10) / 10;
+      const hrEl = document.getElementById('heartRate').textContent;
+      const bpEl = document.getElementById('bloodPressure').textContent;
+      const spo2El = document.getElementById('oxygenSat').textContent;
+      updateVitals(parseInt(hrEl) || 0, bpEl || '120/80', temp, parseInt(spo2El) || 95);
+    }
+
+    if (gameTime <= 0) {
+      endSimulation('Tiempo agotado - resultado adverso');
+    }
+  }, 1000);
+
+  if (window.ECGSim && typeof window.ECGSim.start === 'function') window.ECGSim.start();
+}
+
+function stopSimulation() {
+  gameRunning = false;
+  if (gameTimer) { clearInterval(gameTimer); gameTimer = null; }
+  if (window.ECGSim && typeof window.ECGSim.stop === 'function') window.ECGSim.stop();
+}
+
+function updateTimerUI() {
+  const mm = Math.floor(gameTime / 60).toString().padStart(2, '0');
+  const ss = (gameTime % 60).toString().padStart(2, '0');
+  document.getElementById('mainTimer').textContent = `${mm}:${ss}`;// regla adicional solicitada: si el tiempo restante llega a 30s y el caso NO ha fallado,
+  // la frecuencia cardiaca debe forzarse a 210 lpm.
+  if (!simulationFailed && gameTime <= 30) {
+    forceHR = 210;
+    document.getElementById('ecgRate').textContent = 210;
+    document.getElementById('heartRate').textContent = 210;
+  } else if (!simulationFailed) {
+    // si no hay fallo y no estamos en el umbral de 30s, limpiamos la fuerza (ECG volverá a calcularse)
+    forceHR = null;
+  }
+
+  if (gameTime <= 120) document.getElementById('mainTimer').classList.add('critical'); else document.getElementById('mainTimer').classList.remove('critical');
+} 
+
+// reglas de dosis: rangos aceptados tal como solicitaste
+const doseRules = {
+  'morfina': {min:7.5, max:15, unit:'mg'},
+  'fentanilo': {min:75, max:150, unit:'µg'},
+  'oxicodona': {min:3.8, max:11.3, unit:'mg'},
+  'tramadol': {min:50, max:50, unit:'mg', tol:0.5},
+  'ketorolaco': {min:30, max:30, unit:'mg', tol:0.5}
+};
+
+function administerDrug() {
+  const drug = document.getElementById('drugSelection').value;
+  const doseInput = parseFloat(document.getElementById('drugDose').value);
+  if (!drug || isNaN(doseInput) || doseInput <= 0) { showAlert('warning', 'Seleccione fármaco y dosis válida.'); return; }
+
+  // comprobar si dosis está dentro del rango definido
+  const rule = doseRules[drug];
+  let doseIsGood = false;
+  if (rule) {
+    const tol = rule.tol || 0;
+    if (rule.min === rule.max) {
+      doseIsGood = Math.abs(doseInput - rule.min) <= tol;
+    } else {
+      doseIsGood = (doseInput >= rule.min && doseInput <= rule.max);
+    }
+  }
+
+  if (doseIsGood) {
+    analgesicAdministered = true; // dosis correcta
+    remainingHalved = remainingHalved; // no cambio
+    let message = '';
+    let painReduction = 0;
+    if (['morfina', 'oxicodona', 'fentanilo'].includes(drug)) {
+      message = `${drug.charAt(0).toUpperCase() + drug.slice(1)} administrado: Opioide potente - analgesia rápida y efectiva.`;
+      // reducción de dolor proporcional simplificada
+      painReduction = Math.round(6 * Math.min(1, doseInput / (rule.max || 10)));
+      updateVitals(Math.max(60, parseInt(document.getElementById('heartRate').textContent) - 15), '130/85', 36.8, Math.max(90, parseInt(document.getElementById('oxygenSat').textContent)));
+    } else if (drug === 'tramadol') {
+      message = 'Tramadol administrado: Analgesia moderada, efecto mixto.';
+      painReduction = Math.round(4 * Math.min(1, doseInput / 100));
+    } else if (drug === 'ketorolaco') {
+      message = 'Ketorolaco administrado: AINE potente, efectivo para dolor moderado-severo.';
+      painReduction = Math.round(3 * Math.min(1, doseInput / 30));
+    }
+    const currentPain = parseInt(document.getElementById('painScore').textContent);
+    const newPain = Math.max(0, currentPain - painReduction);
+    document.getElementById('painScore').textContent = newPain;
+    showAlert('success', message + ` (dosis dentro de rango ${rule.min}${rule.unit}${rule.max===rule.min?'' : ' - ' + rule.max + rule.unit})`);
+    addSymptom(formatTime(elapsedTime), [`Medicamento administrado (correcto): ${drug} (${doseInput}${rule.unit})`, `Reducción del dolor: ${painReduction} puntos en escala EVA`]);
+  } else {
+    // dosis fuera de rango: penalización inmediata -> tiempo restante = 1 minuto
+    analgesicAdministered = false; // no fue analgesia efectiva
+    remainingHalved = true; // evitar halving en T+02:00 (ya penalizamos)
+    gameTime = 60;
+    updateTimerUI();
+    // aumentar FC a 200 al ingresar dosis errónea
+    simulationFailed = true; // marcar como evento grave
+    forceHR = 200;
+    document.getElementById('ecgRate').textContent = 200;
+    document.getElementById('heartRate').textContent = 200;
+    showAlert('danger', 'Dosis fuera de rango indicada: tiempo restante reducido a 1 minuto. Frecuencia cardiaca aumentada a 200 lpm.');
+    addSymptom(formatTime(elapsedTime), [`Medicamento administrado (FUERA DE RANGO): ${drug} (${doseInput}), penalización aplicada: tiempo = 1 min`]);
+  }
+}
+
+function confirmTreatment() {
+  const diagnosis = document.getElementById('diagnosis').value;
+  const treatment = document.getElementById('definiteTreatment').value;
+  const followUp = document.getElementById('followUp').value;
+  if (!diagnosis || !treatment) { showAlert('warning', 'Complete diagnóstico y tratamiento definitivo.'); return; }
+  const correctDiagnosis = diagnosis === 'solitaria';
+  // se actualiza el tratamiento "correcto" al único disponible en el select (trombectomia)
+  const correctTreatment = treatment === 'praziquantel';
+  const correctFollowUp = followUp === 'albendazol_2xdia_1mes';
+  
+
+  try {
+    if (correctDiagnosis) addScoreEvent('diag_correct','Diagnóstico correcto: Solitaria', +30); else addScoreEvent('diag_incorrect','Diagnóstico incorrecto', -20);
+    if (correctTreatment) addScoreEvent('treat_correct','Tratamiento correcto: Praziquantel', +40); else addScoreEvent('treat_incorrect','Tratamiento inapropiado', -20);
+    if (correctFollowUp) addScoreEvent('follow_correct','Seguimiento correcto: Albendazol — 2 pastillas al día por 1 mes', +20); else addScoreEvent('follow_incorrect','Seguimiento inadecuado', -10);
+  } catch(e){ console.warn('Scoring failed', e); }
+
+stopSimulation();
+  showResults(correctDiagnosis, correctTreatment, correctFollowUp, diagnosis, treatment, followUp);
+}
+
+function getDiagnosisText(diag) {
+  const diagnoses = {
+    'solitaria': 'Solitaria (CORRECTO)',
+    'necrosis_muscular': 'Necrosis muscular por aneurisma trombosado',
+    'trombosis': 'Trombosis arterial aguda',
+    'aneurisma': 'Aneurisma arterial',
+    'embolia': 'Embolia arterial aguda'
+    // 'rabdomiolisis' eliminado intencionalmente
+  };
+  return diagnoses[diag] || 'No seleccionado';
+}
+
+function getTreatmentText(treat) {
+  const treatments = {
+    'cirugia_necrosectomia': 'Desbridamiento + necrosectomía',
+    'cirugia_vascular': 'Revascularización arterial',
+    'fasciotomia': 'Fasciotomía descompresiva',
+    'amputacion': 'Amputación',
+    'praziquantel': 'Praziquantel (CORRECTO)'
+  };
+  return treatments[treat] || 'No seleccionado';
+}
+
+function getFollowUpText(follow) {
+  const followUps = {
+    'albendazol_c4h_2s': 'Albendazol — cada 4 horas por 2 semanas',
+    'mebendazol_c8h_1s': 'Mebendazol — cada 8 horas por 1 semana',
+    'albendazol_c6h_1m': 'Albendazol — cada 6 horas por 1 mes',
+    'albendazol_2xdia_1mes': 'Albendazol — 2 pastillas al día por 1 mes (CORRECTO)'
+  };
+  return followUps[follow] || 'No seleccionado';
+}
+
+function getFailureConsequences(correctDiag, correctTreat, correctFollow) {
+  const parts = [];
+  if (!correctDiag) parts.push('Diagnóstico incorrecto: retraso en el tratamiento definitivo.');
+  if (!correctTreat) parts.push('tratamiento inapropiado progresión de la enfermedad');
+  if (!correctFollow) parts.push('seguimiento inadecuado peligro de reinfeccion');
+  return parts.join(' ');
+}
+
+function showResults(correctDiag, correctTreat, correctFollow, selDiag, selTreat, selFollow) {
+  const modal = document.getElementById('resultModal');
+  const modalContent = document.getElementById('modalContent');
+  const allCorrect = correctDiag && correctTreat && correctFollow;
+  // si el caso falla, activamos estado de fallo y forzamos FC a 200 lpm
+  if (!allCorrect) {
+    simulationFailed = true;
+    forceHR = 200;
+    document.getElementById('ecgRate').textContent = 200;
+    document.getElementById('heartRate').textContent = 200;
+  }
+
+  let resultHTML = '';
+  if (allCorrect) {
+    resultHTML = `
+      <div class="success-result">
+        <div class="result-icon">✅</div>
+        <h3>¡CASO EXITOSO!</h3>
+        <p>Manejo clínico óptimo completado</p>
+      </div>
+      <div style="text-align:left;margin:20px 0">
+        <h4>Evaluación:</h4>
+        <p style="color:green">✓ <strong>Diagnóstico correcto:</strong> Solitaria</p>
+        <p style="color:green">✓ <strong>Tratamiento correcto:</strong> Praziquantel (terapia antiparasitaria)</p>
+        <p style="color:green">✓ <strong>Seguimiento correcto:</strong> Albendazol — 2 pastillas al día por 1 mes</p>
+      </div>
+      <div style="background:#e8f5e8;padding:15px;border-radius:5px;margin:20px 0">
+        <strong>Resultado clínico esperado:</strong><br>
+        Eliminación parasitaria y resolución de los signos y síntomas. Mejora progresiva de la función y pronóstico favorable con seguimiento antiparasitario y control hematológico.
+      </div>
+    `;
+  } else {
+    resultHTML = `
+      <div class="failure-result">
+        <div class="result-icon">❌</div>
+        <h3>CASO FALLIDO</h3>
+        <p>Manejo clínico subóptimo</p>
+      </div>
+      <div style="text-align:left;margin:20px 0">
+        <h4>Evaluación:</h4>
+        <p style="color:${correctDiag ? 'green' : 'red'}">${correctDiag ? '✓' : '✗'} <strong>Diagnóstico:</strong> ${getDiagnosisText(selDiag)}</p>
+        <p style="color:${correctTreat ? 'green' : 'red'}">${correctTreat ? '✓' : '✗'} <strong>Tratamiento:</strong> ${getTreatmentText(selTreat)}</p>
+        <p style="color:${correctFollow ? 'green' : 'red'}">${correctFollow ? '✓' : '✗'} <strong>Seguimiento:</strong> ${getFollowUpText(selFollow)}</p>
+      </div>
+      <div style="background:#ffeaea;padding:15px;border-radius:5px;margin:20px 0">
+        <strong>Consecuencias del manejo subóptimo:</strong><br>
+        ${getFailureConsequences(correctDiag, correctTreat, correctFollow)}
+      </div>
+    `;
+  }
+  document.getElementById('modalTitle').textContent = allCorrect ? 'Éxito Clínico' : 'Fallo en Manejo';
+  modalContent.innerHTML = resultHTML;
+  modal.style.display = 'flex';
+}
+
+function endSimulation(reason) {
+  stopSimulation();
+  // Si la simulación termina por tiempo agotado, consideramos esto un fallo y forzamos FC a 200 lpm
+  simulationFailed = true;
+  forceHR = 200;
+  document.getElementById('ecgRate').textContent = 200;
+  document.getElementById('heartRate').textContent = 200;
+  const modal = document.getElementById('resultModal');
+  document.getElementById('modalTitle').textContent = 'Finalización de Simulación';
+  document.getElementById('modalContent').innerHTML = `<div style="padding:10px;background:#fff5f5;border-radius:6px"><strong>${reason}</strong><p>Resultado adverso por manejo o tiempo.</p></div>`;
+  modal.style.display = 'flex';
+}
+
+// listeners y arranque
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.ECGSim && typeof window.ECGSim.init === 'function') window.ECGSim.init();
+  startSimulation();
+  document.getElementById('administerDrug').addEventListener('click', administerDrug);
+  document.getElementById('submitTreatment').addEventListener('click', confirmTreatment);
+  document.getElementById('newSimBtn').addEventListener('click', () => { document.getElementById('resultModal').style.display = 'none'; startSimulation(); });
+  const ecgCanvas = document.getElementById('ecgCanvas');
+  ecgCanvas.addEventListener('click', () => {
+    const paused = document.getElementById('ecgPaused');
+    if (gameRunning) { stopSimulation(); paused.style.display = 'flex'; }
+    else { startSimulation(); paused.style.display = 'none'; }
+  });
+
+  // actualizar unidad placeholder según fármaco seleccionado
+  const drugSel = document.getElementById('drugSelection');
+  const doseUnitEl = document.getElementById('doseUnit');
+  const doseInputEl = document.getElementById('drugDose');
+  drugSel.addEventListener('change', () => {
+    const val = drugSel.value;
+    if (doseRules[val]) {
+      doseUnitEl.textContent = doseRules[val].unit || 'mg';
+      doseInputEl.placeholder = `Dosis en ${doseRules[val].unit}`;
+      if (doseRules[val].unit === 'µg') {
+        doseInputEl.step = 1; // microgramos con paso entero
+        doseInputEl.max = 10000;
+      } else {
+        doseInputEl.step = 0.1;
+        doseInputEl.max = 1000;
+      }
+    } else {
+      doseUnitEl.textContent = 'mg';
+      doseInputEl.placeholder = 'Dosis';
+      doseInputEl.step = 0.1;
+    }
+  });
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const confirmBtn = document.getElementById('confirmLabs');
+  const labCheckboxes = Array.from(document.querySelectorAll('.labCheckbox'));
+  const labStatus = document.getElementById('labStatus');
+  const labResults = document.getElementById('labResults');
+  if (!confirmBtn) return;
+  function getSelected(){
+    return labCheckboxes.filter(c => c.checked).map(c => c.value);
+  }
+  confirmBtn.addEventListener('click', () => {
+    const sel = getSelected();
+    labStatus.textContent = sel.length ? `${sel.length} estudio(s) seleccionado(s)` : 'No se seleccionó ningún estudio';
+    if (sel.length === 0){ labResults.style.display = 'none'; labResults.innerHTML = ''; return; }
+    const parts = [];
+    sel.forEach(s => {
+      if (s === 'bh') {
+        parts.push('<h4>Biometría hemática</h4><p>Hb: 9.0 g/dL, Hto: 27%, VCM: 110 fL (macrocitosis significativa), Leucocitos: 3.0 x10^3/µL (leucopenia), Plaquetas: 180 x10^3/µL — hallazgos compatibles con anemia macrocítica/ megaloblástica.</p>');
+      } else if (s === 'rm') {
+        parts.push('<h4>Resonancia magnética</h4><p>Informe: Sin lesiones intracraneales agudas; edema localizado en extremidad afectada.</p>');
+      } else if (s === 'frotis') {
+        parts.push('<h4>Frotis sanguíneo</h4><p>Morfología megaloblástica: macrocitosis marcada, anisopoiquilocitosis; neutrófilos hipersegmentados (>5 lóbulos). Recuento leucocitario disminuido (leucopenia).</p>');
+      } else if (s === 'rx') {
+        parts.push('<h4>Rayos X</h4><p>Proyecciones: sin fracturas torácicas ni desplazamientos óseos relevantes; extremidades: evaluar según proyección solicitada.</p>');
+      } else if (s === 'b12') {
+        parts.push('<h4>Niveles séricos de vitamina B12, B9 y hierro</h4><p>Vitamina B12: 110 pg/mL (BAJO — consistente con anemia megaloblástica)<br>Folato (B9): 2.0 ng/mL (BAJO, contribuye a la patogenia megaloblástica)<br>Hierro sérico: 55 µg/dL (rango: 60–170 µg/dL)<br>Ferritina: 25 ng/mL (rango: 15–150 ng/mL)</p><p><em>Interpretación:</em> niveles bajos de B12 y folato compatibles con anemia megaloblástica; presencia de macrocitosis y neutrófilos hipersegmentados en el frotis refuerza el diagnóstico.</p>');
+      }
+    });
+    labResults.innerHTML = parts.join('<hr>');
+    labResults.style.display = 'block';
+  });
+});
+</script>
+
+<!-- ADICIONES: no se modifica el contenido original; se añade funcionalidad vía JS -->
+<script>
+(function(){
+  document.addEventListener('DOMContentLoaded', function(){
+    try {
+      // 1) Agregar "Fatiga y cansancio significativo" a Antecedentes (si no existe)
+      const ph = document.getElementById('patientHistory');
+      if (ph) {
+        const ul = ph.querySelector('ul');
+        if (ul) {
+          const exists = Array.from(ul.querySelectorAll('li')).some(li => /fatiga y cansancio significativo/i.test(li.textContent));
+          if (!exists) {
+            const li = document.createElement('li');
+            li.textContent = 'Fatiga y cansancio significativo';
+            let insertIndex = null;
+            Array.from(ul.children).forEach((ch, idx) => {
+              if (/no refiere antecedentes/i.test(ch.textContent)) insertIndex = idx;
+            });
+            if (insertIndex !== null) ul.insertBefore(li, ul.children[insertIndex]);
+            else ul.appendChild(li);
+          }
+        }
+      }
+
+      // 2) Actualizar el selector de fármacos en tiempo de ejecución (solo DOM): mantener MORFINA y reemplazar las demás opciones
+      const sel = document.getElementById('drugSelection');
+      if (sel) {
+        const previous = sel.value || '';
+        const newOptions = [
+          {v:'', t:'-- Seleccionar fármaco --'},
+          {v:'morfina', t:'Morfina'},
+          {v:'verapamilo', t:'Verapamilo'},
+          {v:'folatos', t:'Folatos (ácido fólico)'},
+          {v:'cianocobalamina', t:'Cianocobalamina'},
+          {v:'nitroprusiato', t:'Nitroprusiato de sodio'}
+        ];
+        sel.innerHTML = '';
+        newOptions.forEach(o => {
+          const opt = document.createElement('option');
+          opt.value = o.v;
+          opt.textContent = o.t;
+          sel.appendChild(opt);
+        });
+        sel.value = previous;
+        sel.dispatchEvent(new Event('change'));
+      }
+
+      // 3) Añadir/ajustar reglas de dosis sin tocar el objeto original (extendemos window.doseRules)
+      window.doseRules = window.doseRules || {};
+      window.doseRules['folatos'] = {min:15, max:50, unit:'mg'};
+      window.doseRules['cianocobalamina'] = {min:0.7, max:1.5, unit:'g'};
+      if (!window.doseRules['verapamilo']) window.doseRules['verapamilo'] = {min:2.5, max:5, unit:'mg'};
+      if (!window.doseRules['nitroprusiato']) window.doseRules['nitroprusiato'] = {min:0.5, max:5, unit:'mg'};
+
+      // 4) Extender "Tratamiento Definitivo" con las opciones solicitadas (sin modificar el archivo base)
+      const defSel = document.getElementById('definiteTreatment');
+      if (defSel) {
+        const extra = [
+          {v:'megadosis_hierro', t:'Megadosis de hierro'},
+          {v:'metotrexato', t:'Metotrexato'},
+          {v:'5fluorouracilo', t:'5-Fluorouracilo'},
+          {v:'praziquantel', t:'Praziquantel'},
+          {v:'fluoroquinolonas', t:'Fluoroquinolonas'}
+        ];
+        // append only if not already present
+        extra.forEach(o => {
+          if (!Array.from(defSel.options).some(opt => opt.value === o.v)) {
+            const opt = document.createElement('option');
+            opt.value = o.v;
+            opt.textContent = o.t;
+            defSel.appendChild(opt);
+          }
+        });
+      }
+
+      // 5) Interceptar la función administerDrug existente: no modificamos el código original, lo envolvemos.
+      if (typeof window.administerDrug === 'function') {
+        const originalAdminister = window.administerDrug.bind(window);
+        window.administerDrug = function(){
+          try {
+            const drug = (document.getElementById('drugSelection') && document.getElementById('drugSelection').value) || '';
+            const doseStr = (document.getElementById('drugDose') && document.getElementById('drugDose').value) || '';
+            const doseInput = parseFloat(doseStr);
+            if (!drug || isNaN(doseInput) || doseInput <= 0) {
+              return originalAdminister();
+            }
+            const rule = (window.doseRules && window.doseRules[drug]) || null;
+            let doseIsGood = false;
+            if (rule) {
+              const tol = rule.tol || 0;
+              if (rule.min === rule.max) doseIsGood = Math.abs(doseInput - rule.min) <= tol;
+              else doseIsGood = (doseInput >= rule.min && doseInput <= rule.max);
+            }
+
+            // fármacos que aunque tengan dosis "correcta" NO son apropiados para anemia megaloblástica
+            const notAppropriate = ['morfina','verapamilo','nitroprusiato'];
+            if (notAppropriate.includes(drug) && doseIsGood) {
+              if (typeof showAlert === 'function') {
+                showAlert('warning', 'Aunque la dosis indicada está dentro del rango, MÓRFINA / VERAPAMILO / NITROPRUSIATO no es un tratamiento apropiado para la anemia megaloblástica.');
+              } else {
+                alert('Advertencia: Mórfina/Verapamilo/Nitroprusiato no es apropiado para anemia megaloblástica.');
+              }
+              if (typeof addSymptom === 'function') {
+                addSymptom(formatTime(elapsedTime), [
+                  `Medicamento administrado (inefectivo para la etiología): ${drug} (${doseInput}${rule?rule.unit:''})`,
+                  'No es tratamiento adecuado para anemia megaloblástica'
+                ]);
+              }
+              window.analgesicAdministered = false;
+              return;
+            }
+
+            // Si se administra folatos o cianocobalamina dentro del rango, tratamos esto como tratamiento etiológico.
+            // NO se aplica la "regla del minuto" ni se interpreta como analgesia que alivie el cuadro inmediatamente.
+            if ((drug === 'folatos' || drug === 'cianocobalamina') && doseIsGood) {
+              // marcar que se administró tratamiento etiológico (pero no produce alivio inmediato)
+              window.etiologicTreatmentGiven = {drug, dose: doseInput, time: elapsedTime};
+              window.preventMinutePenalty = true; // evita que otras lógicas apliquen penalizaciones basadas en tiempos
+              window.analgesicAdministered = false; // no es analgesia aguda efectiva en anemia megaloblástica
+
+              const message = 'Tratamiento correcto (etiológico) administrado: ' + (drug === 'folatos' ? 'Folatos' : 'Cianocobalamina') + `. Sin embargo, no alivia de forma inmediata la anemia megaloblástica.`;
+              if (typeof showAlert === 'function') {
+                showAlert('success', message + ` (dosis dentro de rango ${rule.min}${rule.unit} - ${rule.max}${rule.unit})`);
+              } else {
+                console.log(message);
+              }
+              if (typeof addSymptom === 'function') {
+                addSymptom(formatTime(elapsedTime), [
+                  `Tratamiento etiológico administrado: ${drug} (${doseInput}${rule.unit})`,
+                  'No alivio inmediato de anemia megaloblástica; requiere seguimiento y terapia específica de sostén'
+                ]);
+              }
+
+              // *** NUEVO: restablecer el tiempo restante a 4:00 (240 s) independientemente del tiempo transcurrido ***
+              try {
+                window.gameTime = 240; // 4 minutos
+                if (typeof updateTimerUI === 'function') updateTimerUI();
+                // despejar flags de fallo que podrían forzar FC alta
+                window.simulationFailed = false;
+                window.forceHR = null;
+                // actualizar estado del paciente y registrar el evento
+                if (document.getElementById('patientStatus')) document.getElementById('patientStatus').textContent = 'Tratamiento etiológico administrado — estabilizado temporalmente';
+                if (typeof addSymptom === 'function') addSymptom(formatTime(elapsedTime), [`Tiempo restablecido a 4:00 tras administración de ${drug}`]);
+              } catch(e) {
+                console.warn('No fue posible restablecer el tiempo a 4:00:', e);
+              }
+
+              // limpiar la prevención de penalización pasados unos segundos (ej. 300s) para evitar bloqueo indefinido
+              try {
+                if (window._preventClearTimer) clearTimeout(window._preventClearTimer);
+                window._preventClearTimer = setTimeout(() => { window.preventMinutePenalty = false; }, 300000);
+              } catch(e){}
+              return;
+            }
+
+            // En cualquier otro caso dejamos que la función original maneje la administración
+            return originalAdminister();
+          } catch (err) {
+            console.error('Error en wrapper administerDrug:', err);
+            return originalAdminister();
+          }
+        };
+
+        // Re-vincular botón "ADMINISTRAR MEDICAMENTO" al wrapper
+        const btn = document.getElementById('administerDrug');
+        if (btn) {
+          try { btn.removeEventListener('click', window.administerDrug); } catch(e){}
+          btn.addEventListener('click', window.administerDrug);
+        }
+      } // end if administer exists
+
+      // 6) Añadir fluctuación de presión arterial después de T+01:00 (sin modificar el código original),
+      //    la PA variará aleatoriamente entre 110/90 y 150/120 mientras el caso esté en curso.
+      if (!window._bpFluctInterval) {
+        window._bpFluctInterval = setInterval(() => {
+          try {
+            if (!window.gameRunning) return;
+            if (typeof elapsedTime === 'undefined' || elapsedTime < 60 || elapsedTime >= 270) return;
+            // generar valores aleatorios dentro de los rangos solicitados
+            const systolic = Math.floor(Math.random() * (150 - 110 + 1)) + 110;
+            const diastolic = Math.floor(Math.random() * (120 - 90 + 1)) + 90; // DIÁSTOLICA ahora hasta 120
+            const bpStr = `${systolic}/${diastolic}`;
+            const hrEl = parseInt(document.getElementById('heartRate').textContent) || 0;
+            const tempEl = parseFloat(document.getElementById('temperature').textContent) || 36.8;
+            const spo2El = parseInt(document.getElementById('oxygenSat').textContent) || 95;
+            // actualizar solo la presión y mantener el resto
+            if (typeof updateVitals === 'function') {
+              updateVitals(hrEl, bpStr, tempEl, spo2El);
+            } else {
+              const bpNode = document.getElementById('bloodPressure');
+              if (bpNode) bpNode.textContent = bpStr;
+            }
+          } catch(e) {
+            console.error('Error en bpFluctInterval', e);
+          }
+        }, 1000);
+      }
+
+    } catch (e) {
+      console.error('Error en script de adiciones:', e);
+    }
+  });
+})();
+</script>
+<!-- FIN ADICIONES -->
+
+
+
+
+<!-- SCORE: Sistema de puntuación (parcheado) - versión corregida.
+     Reemplaza y mejora las funciones para asegurar que la puntuación no quede siempre en 100.
+-->
+<script>
+/* --- SCORE PATCH: versión corregida --- */
+
+// Inicialización segura (no sobrescribimos si ya existe)
+window.simScore = window.simScore || { max: 100, current: 100, events: [] };
+
+// Helper clamp
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+/* Reemplazo de addScoreEvent:
+   - exige 'code'
+   - no duplica el mismo code
+   - registra en consola para depuración
+   - tras añadir un evento, recalcula desde events[]
+*/
+window.addScoreEvent = function(code, message, delta){
+  if(!code){
+    console.warn('SCORE: addScoreEvent sin code -> ignorado', {message, delta});
+    return;
+  }
+  var exists = window.simScore.events.some(function(ev){ return ev.code === code; });
+  if(exists){
+    console.log('SCORE: evento ya registrado, ignorando duplicado:', code);
+    return;
+  }
+  var ev = { code: code, message: message, delta: Number(delta) || 0, timestamp: new Date().toISOString() };
+  window.simScore.events.push(ev);
+  console.log('SCORE: evento añadido', ev);
+  // Recalcular desde los eventos
+  window.computeFinalScore();
+};
+
+/* Reemplazo de computeFinalScore: recalcula desde events[] */
+window.computeFinalScore = function(){
+  var base = (typeof window.simScore.max === 'number') ? window.simScore.max : 100;
+  var total = base;
+  for(var i=0;i<window.simScore.events.length;i++){
+    try{
+      total += Number(window.simScore.events[i].delta) || 0;
+    }catch(e){}
+  }
+  total = Math.max(0, Math.min(total, base));
+  window.simScore.current = total;
+  console.log('SCORE: computeFinalScore ->', window.simScore.current, 'events:', window.simScore.events);
+  return window.simScore.current;
+};
+
+/* Construye el HTML del bloque de puntuación */
+function buildScoreHTML(){
+  var cur = window.computeFinalScore();
+  var html = '<div id="simScoreBox" style="margin-top:1em;padding:0.75em;border-top:1px solid #ddd;background:#fafafa;">';
+  html += '<h3 style="margin:0 0 0.25em 0;">Puntuación final: ' + cur + ' / ' + window.simScore.max + '</h3>';
+  if(cur === window.simScore.max){
+    html += '<p style="margin:0 0 0.5em 0;font-weight:600;color:green;">¡Excelente! Todas las decisiones principales fueron correctas.</p>';
+  }
+  html += '<details style="font-size:0.95em;"><summary>Ver desglose de eventos</summary><ul style="margin-top:0.5em;padding-left:1.2em;">';
+  if(window.simScore.events.length === 0){
+    html += '<li>No se registraron eventos de puntuación.</li>';
+  } else {
+    window.simScore.events.forEach(function(ev){
+      var sign = ev.delta >= 0 ? '+' : '';
+      html += '<li><strong>' + sign + ev.delta + '</strong> — ' + ev.message + ' <small style="color:#666">(' + ev.code + ')</small></li>';
+    });
+  }
+  html += '</ul></details>';
+  html += '<p style="font-size:0.85em;color:#666;margin-top:0.5em;">Notas: Las penalizaciones no se duplican por el mismo error (solo la primera ocurrencia se contabiliza).</p>';
+  html += '</div>';
+  return html;
+}
+
+/* InsertScoreIntoResultModal (versión parcheada):
+   - fuerza un recálculo final
+   - intenta insertar o reemplazar el bloque #simScoreBox en modal
+   - incluye logs para depuración
+*/
+function insertScoreIntoResultModal(){
+  try {
+    // Backup: volver a evaluar confirmTreatment si está disponible para asegurar eventos
+    if(typeof processConfirmTreatment === 'function'){
+      try { processConfirmTreatment(); } catch(e) { console.warn('SCORE: processConfirmTreatment fallo', e); }
+    }
+
+    // Recalcular desde events[]
+    window.computeFinalScore();
+
+    var htmlBlock = buildScoreHTML();
+
+    var placed = false;
+    var selectors = ['#resultModal', '#resultsModal', '#modalResult', '#modalContent', '.modal-content', '#resultModal .modal-body', '.modal-body'];
+    for(var i=0;i<selectors.length;i++){
+      var el = document.querySelector(selectors[i]);
+      if(el){
+        var container = el.querySelector('.modal-body') || el.querySelector('.modal-content') || el;
+        // Si ya existe, reemplazamos; si no, insertamos
+        var existing = container.querySelector('#simScoreBox');
+        if(existing){
+          existing.outerHTML = htmlBlock;
+        } else {
+          container.insertAdjacentHTML('beforeend', htmlBlock);
+        }
+        placed = true;
+        break;
+      }
+    }
+    if(!placed){
+      // fallback: añade al final del body
+      var existingBodyBox = document.querySelector('#simScoreBox');
+      if(existingBodyBox){
+        existingBodyBox.outerHTML = htmlBlock;
+      } else {
+        document.body.insertAdjacentHTML('beforeend', htmlBlock);
+      }
+    }
+    console.log('SCORE: insertScoreIntoResultModal executed. current:', window.simScore.current);
+  } catch (err){
+    console.error('SCORE: error insertScoreIntoResultModal', err);
+  }
+}
+
+/* Heurísticas para processAdministerDrug y processConfirmTreatment:
+   Mantengo las heurísticas previas (ajústalas si tus valores de <select> son literales)
+*/
+function processAdministerDrug(drugName, dose){
+  if(!drugName) return;
+  var d = (''+drugName).toLowerCase();
+
+  // Etiológico correcto (folatos / vitamina B12) => +20 (si no registrado)
+  if(/folat|folic|ácido fólico|ácido folico|folina|folato/.test(d) || /cianocobalamin|vitamina b12|vit b12|b12/.test(d)){
+    var inRange = null;
+    if(typeof dose === 'number' && !isNaN(dose)){
+      if(dose > 0 && dose < 10000) inRange = true;
+      else inRange = false;
+    }
+    if(inRange === true){
+      addScoreEvent('etiologic_correct', 'Tratamiento etiológico administrado con dosis en rango (+20)', +20);
+    } else if(inRange === null){
+      addScoreEvent('etiologic_admin_no_dose', 'Tratamiento etiológico administrado (dosis no especificada) (+15)', +15);
+    } else {
+      addScoreEvent('etiologic_dose_out_of_range', 'Tratamiento etiológico administrado pero dosis fuera de rango (-10)', -10);
+    }
+    return;
+  }
+
+  // Analgesia adecuada => +10
+  if(/morfina|fentanil|fentanyl|oxycodone|oxycodona|opioid|opioide|tramadol/.test(d)){
+    if(typeof dose === 'number' && (dose <= 0 || isNaN(dose))){
+      addScoreEvent('analgesia_dose_bad', 'Analgesia administrada con dosis inválida (-5)', -5);
+    } else {
+      addScoreEvent('analgesia_correct', 'Analgesia adecuada administrada (+10)', +10);
+    }
+    return;
+  }
+
+  // Dosis fuera de rango genérica
+  if(typeof dose === 'number' && (dose <= 0 || dose > 1000000)){
+    addScoreEvent('dose_out_of_range', 'Dosis fuera de rango detectada (-10)', -10);
+    return;
+  }
+
+  // Fármacos claramente inapropiados
+  if(/nitroprusiato|verapamilo|tpa|alteplase|heparina|warfarin/.test(d)){
+    addScoreEvent('drug_inappropriate', 'Fármaco inapropiado para la etiología (-8)', -8);
+    return;
+  }
+}
+
+function processConfirmTreatment(){
+  var diagEl = document.querySelector('#diagnosis') || document.querySelector('#diag') || document.querySelector('[name="diagnosis"]');
+  var treatEl = document.querySelector('#definiteTreatment') || document.querySelector('#treatment') || document.querySelector('[name="definiteTreatment"]');
+  var followEl = document.querySelector('#followUp') || document.querySelector('#followup') || document.querySelector('[name="followUp"]');
+
+  var diag = diagEl ? (diagEl.value || (diagEl.options && diagEl.options[diagEl.selectedIndex] && diagEl.options[diagEl.selectedIndex].text)) : null;
+  var treat = treatEl ? (treatEl.value || (treatEl.options && treatEl.options[treatEl.selectedIndex] && treatEl.options[treatEl.selectedIndex].text)) : null;
+  var follow = followEl ? (followEl.value || (followEl.options && followEl.options[followEl.selectedIndex] && followEl.options[followEl.selectedIndex].text)) : null;
+
+  // Diagnóstico: 30 puntos si contiene 'megaloblast'
+  if(diag && (/^solitaria$/i).test(diag)){
+    addScoreEvent('diag_correct', 'Diagnóstico correcto (+30)', +30);
+  } else {
+    addScoreEvent('diag_incorrect', 'Diagnóstico incorrecto o no especificado (-30)', -30);
+  }
+
+  // Tratamiento definitivo: 35 puntos si contiene 'praziquantel'
+  if(treat && /praziquantel/i.test(treat)){
+    addScoreEvent('treat_def_correct', 'Tratamiento definitivo correcto (+35)', +35);
+  } else {
+    addScoreEvent('treat_def_incorrect', 'Tratamiento definitivo incorrecto o no especificado (-35)', -35);
+  }
+
+  // Seguimiento: 15 puntos si contiene 'albendazol'
+  if(follow && /albendazol|albendazole/i.test(follow)){
+    addScoreEvent('follow_correct', 'Seguimiento correcto (+15)', +15);
+  } else {
+    addScoreEvent('follow_incorrect', 'Seguimiento incorrecto o no especificado (-15)', -15);
+  }
+}
+
+/* Safe wrapping (polling) para funciones que puedan definirse después */
+function safeWrap(name, wrapper){
+  var attempts = 0;
+  var maxAttempts = 30;
+  var interval = setInterval(function(){
+    attempts++;
+    if(typeof window[name] === 'function'){
+      var orig = window[name];
+      window[name] = function(){
+        var r = orig.apply(this, arguments);
+        try { wrapper.apply(this, arguments); } catch(e){ console.warn('SCORE: wrapper fallo', e); }
+        return r;
+      };
+      console.log('SCORE: wrapped function', name);
+      clearInterval(interval);
+    } else if(attempts >= maxAttempts){
+      // si no existe, creamos fallback que ejecuta wrapper
+      window[name] = function(){
+        try { wrapper.apply(this, arguments); } catch(e){ console.warn('SCORE: wrapper (fallback) fallo', e); }
+      };
+      console.log('SCORE: creado fallback para', name);
+      clearInterval(interval);
+    }
+  }, 200);
+}
+
+/* Intentar envolver funciones clave */
+document.addEventListener('DOMContentLoaded', function(){
+  try{
+    safeWrap('administerDrug', function(){
+      try {
+        if(typeof processAdministerDrug === 'function'){
+          // intentar pasar argumentos originales si existen
+          var a0 = arguments && arguments.length > 0 ? arguments[0] : null;
+          var a1 = arguments && arguments.length > 1 ? arguments[1] : null;
+          processAdministerDrug(a0, a1);
+        }
+      } catch(e){ console.warn('SCORE: processAdministerDrug wrapper fallo', e); }
+    });
+
+    safeWrap('confirmTreatment', function(){
+      try { processConfirmTreatment(); } catch(e){ console.warn('SCORE: processConfirmTreatment fallback fallo', e); }
+      try { insertScoreIntoResultModal(); } catch(e){}
+    });
+
+    safeWrap('showResults', function(){ try { insertScoreIntoResultModal(); } catch(e){} });
+
+    safeWrap('endSimulation', function(reason){
+      try { window.addScoreEvent('simulation_end_' + (reason || 'ended'), 'Simulación finalizada: ' + (reason || 'ended') + ' (-20)', -20); } catch(e){}
+      try { insertScoreIntoResultModal(); } catch(e){}
+    });
+  }catch(e){ console.warn('SCORE: error al intentar safeWrap', e); }
+});
+
+/* Exponer helpers para depuración/manual testing */
+window._scoreHelpers = window._scoreHelpers || {};
+window._scoreHelpers.buildScoreHTML = buildScoreHTML;
+window._scoreHelpers.insertScoreIntoResultModal = insertScoreIntoResultModal;
+window._scoreHelpers.processAdministerDrug = processAdministerDrug;
+window._scoreHelpers.processConfirmTreatment = processConfirmTreatment;
+
+/* FIN DEL PATCH */
+</script>
+
+<script>
+/* SCORE: Deterministic final scoring patch
+   - Computes final score from UI state (diagnosis, treatment, follow-up, admin flags)
+   - Produces a clear breakdown of penalties and stores in simScore.finalEvents
+   - Ensures displayed score matches the computed result
+*/
+(function(){
+  // Ensure simScore exists
+  window.simScore = window.simScore || { max: 100, current: 100, events: [] };
+
+  // Helper to check existing event codes
+  function hasEventCode(rex){
+    try{
+      return (window.simScore.events || []).some(function(ev){
+        return rex.test(ev.code || '') || rex.test(ev.message || '');
+      });
+    }catch(e){ return false; }
+  }
+
+  // Deterministic computation based on DOM and known window flags
+  window.computeFinalScoreDeterministic = function(){
+    var base = (typeof window.simScore.max === 'number') ? window.simScore.max : 100;
+    var penalties = [];
+
+    // 1) Diagnóstico (30)
+    var diagEl = document.querySelector('#diagnosis') || document.querySelector('#diag') || document.querySelector('[name="diagnosis"]');
+    var diagVal = diagEl ? (diagEl.value || '') : '';
+    var diagCorrect = (/^solitaria$/i).test(diagVal);
+    if(!diagCorrect){
+      penalties.push({code:'pen_diag', amount:30, message:'Diagnóstico incorrecto o no especificado (-30)'});
+    } else {
+      penalties.push({code:'pen_diag_ok', amount:0, message:'Diagnóstico correcto (0)'}); 
+    }
+
+    // 2) Tratamiento definitivo (35)
+    var treatEl = document.querySelector('#definiteTreatment') || document.querySelector('#treatment') || document.querySelector('[name="definiteTreatment"]');
+    var treatVal = treatEl ? (treatEl.value || '') : '';
+    var treatCorrect = (/^praziquantel$/i).test(treatVal);
+    if(!treatCorrect){
+      penalties.push({code:'pen_treat', amount:35, message:'Tratamiento definitivo incorrecto o no especificado (-35)'});
+    } else {
+      penalties.push({code:'pen_treat_ok', amount:0, message:'Tratamiento definitivo correcto (0)'}); 
+    }
+
+    // 3) Seguimiento (15)
+    var followEl = document.querySelector('#followUp') || document.querySelector('#followup') || document.querySelector('[name="followUp"]');
+    var followVal = followEl ? (followEl.value || '') : '';
+    // Preferred correct option is 'albendazol_2xdia_1mes' per your rubric
+    var followCorrect = (/^albendazol_2xdia_1mes$/i).test(followVal);
+    if(!followCorrect){
+      penalties.push({code:'pen_follow', amount:15, message:'Seguimiento incorrecto o no especificado (-15)'});
+    } else {
+      penalties.push({code:'pen_follow_ok', amount:0, message:'Seguimiento correcto (0)'}); 
+    }
+
+    // 4) Administración / dosis (20)
+    // Heurística:
+    // - If window.etiologicTreatmentGiven exists (set by admin wrapper for folatos/B12) => no penalty
+    // - else if window.analgesicAdministered true => partial penalty of 10
+    // - else full penalty of 20
+    var adminPenaltyAmount = 20;
+    var adminMsg = 'No se administró tratamiento etiológico (-20)';
+    try{
+      if(window.etiologicTreatmentGiven && window.etiologicTreatmentGiven.drug){
+        // etiologic given -> no penalty
+        adminPenaltyAmount = 0;
+        adminMsg = 'Tratamiento etiológico administrado (0)';
+      } else if(window.analgesicAdministered){
+        // analgesic given but no etiologic -> partial credit => penalty 10
+        adminPenaltyAmount = 10;
+        adminMsg = 'Sólo analgesia administrada; no tratamiento etiológico completo (-10)';
+      } else {
+        adminPenaltyAmount = 20;
+        adminMsg = 'No se administró tratamiento apropiado (-20)';
+      }
+    }catch(e){
+      // default remains 20
+    }
+    penalties.push({code:'pen_admin', amount:adminPenaltyAmount, message:adminMsg});
+
+    // 5) Penalización adicional por dosis fuera de rango detectada en eventos previos
+    var extraDosePenalty = 0;
+    if(hasEventCode(/dose_out_of_range|etiologic_dose_out_of_range|analgesia_dose_bad/i)){
+      extraDosePenalty = 10;
+      penalties.push({code:'pen_dose_out', amount:10, message:'Dosis fuera de rango detectada (-10)'});
+    } else {
+      penalties.push({code:'pen_dose_ok', amount:0, message:'No se detectó dosis fuera de rango (0)'});
+    }
+
+    // Sum penalties
+    var totalPenalty = penalties.reduce(function(acc,p){ return acc + (Number(p.amount)||0); }, 0);
+    var finalScore = Math.max(0, Math.min(base - totalPenalty, base));
+
+    // Store final events for display (do not remove original simScore.events)
+    window.simScore.finalEvents = penalties.map(function(p){ return { code: p.code, message: p.message, delta: -Math.abs(p.amount) }; });
+
+    // Also store a summary event
+    window.simScore.finalSummary = { totalPenalty: totalPenalty, score: finalScore };
+
+    // Update current
+    window.simScore.current = finalScore;
+
+    // For debugging
+    console.log('SCORE: deterministic compute -> base', base, 'totalPenalty', totalPenalty, 'finalScore', finalScore, 'details', penalties);
+
+    return finalScore;
+  };
+
+  // Enhance buildScoreHTML to prefer simScore.finalEvents/finalSummary if available
+  // We search existing buildScoreHTML; if not found we create a new one.
+  function overrideBuildScoreHTML(){
+    try{
+      // If original exists, wrap it
+      var originalBuilder = window.buildScoreHTML && typeof window.buildScoreHTML === 'function' ? window.buildScoreHTML : null;
+      window.buildScoreHTML = function(){
+        // Ensure deterministic compute runs
+        var cur = (typeof window.computeFinalScoreDeterministic === 'function') ? window.computeFinalScoreDeterministic() : (window.simScore.current || window.simScore.max || 100);
+        var html = '<div id="simScoreBox" style="margin-top:1em;padding:0.75em;border-top:1px solid #ddd;background:#fafafa;">';
+        html += '<h3 style="margin:0 0 0.25em 0;">Puntuación final: ' + cur + ' / ' + (window.simScore.max||100) + '</h3>';
+        if(cur === (window.simScore.max||100)){
+          html += '<p style="margin:0 0 0.5em 0;font-weight:600;color:green;">¡Excelente! Todas las decisiones principales fueron correctas.</p>';
+        }
+        html += '<details style="font-size:0.95em;"><summary>Ver desglose de penalizaciones</summary><ul style="margin-top:0.5em;padding-left:1.2em;">';
+
+        var fe = window.simScore.finalEvents && window.simScore.finalEvents.length ? window.simScore.finalEvents : (window.simScore.events || []);
+        if(fe.length === 0){
+          html += '<li>No se registraron eventos de puntuación.</li>';
+        } else {
+          fe.forEach(function(ev){
+            var sign = (ev.delta && ev.delta < 0) ? '' : '+';
+            html += '<li><strong>' + (ev.delta || 0) + '</strong> — ' + (ev.message || ev.code) + ' <small style="color:#666">(' + (ev.code||'') + ')</small></li>';
+          });
+        }
+
+        // Add summary
+        var summary = window.simScore.finalSummary || {};
+        html += '</ul></details>';
+        if(summary && typeof summary.score !== 'undefined'){
+          html += '<p style="font-size:0.95em;margin-top:0.5em;"><strong>Resumen:</strong> Penalización total: ' + (summary.totalPenalty||0) + ' ; Puntuación: ' + summary.score + ' / ' + (window.simScore.max||100) + '</p>';
+        }
+        html += '<p style="font-size:0.85em;color:#666;margin-top:0.5em;">Notas: Las penalizaciones se calculan desde el estado final del simulador.</p>';
+        html += '</div>';
+        return html;
+      };
+      console.log('SCORE: buildScoreHTML overridden to use deterministic final compute.');
+    }catch(e){
+      console.warn('SCORE: failed to override buildScoreHTML', e);
+    }
+  }
+
+  // Run override on DOMContentLoaded
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', overrideBuildScoreHTML);
+  } else {
+    overrideBuildScoreHTML();
+  }
+
+  // Also expose a convenience function to force recompute + insert into modal
+  window.recomputeAndInsertScore = function(){
+    try{
+      if(typeof window.computeFinalScoreDeterministic === 'function') window.computeFinalScoreDeterministic();
+      if(typeof window.insertScoreIntoResultModal === 'function') window.insertScoreIntoResultModal();
+      else {
+        // fallback: build HTML and append
+        var htmlBlock = window.buildScoreHTML ? window.buildScoreHTML() : '<div id="simScoreBox">Puntuación generada.</div>';
+        var container = document.querySelector('#resultModal .modal-body') || document.querySelector('#modalContent') || document.body;
+        if(container && !container.querySelector('#simScoreBox')) container.insertAdjacentHTML('beforeend', htmlBlock);
+      }
+    }catch(e){ console.warn('SCORE: recomputeAndInsertScore failed', e); }
+  };
+
+})();
+</script>
+
+<!-- BEGIN: Scoring system replaced by dengue-style (adapted for Tenia) -->
+<script>
+(function(){
+  if (window.__dengueStyleScoringApplied) return; window.__dengueStyleScoringApplied = true;
+
+  // Simple percent-based scoring like the dengue simulator (values are interpreted as percent points)
+  window.simScore = window.simScore || { max: 100, percent: 0, events: {} };
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  // Mapping is kept minimal; explicit addScoreEvent calls will set values.
+  window.addScoreEvent = function(id, label, valuePercent){
+    try {
+      if (!id) return;
+      window.simScore.events = window.simScore.events || {};
+      if (window.simScore.events[id]) return; // avoid duplicates
+      const val = Number(valuePercent) || 0;
+      window.simScore.events[id] = { label: label || id, value: val, time: new Date().toISOString() };
+      // update percent (0-100)
+      window.simScore.percent = clamp((window.simScore.percent || 0) + val, 0, 100);
+      window.simScore.score = Math.round(window.simScore.percent * (window.simScore.max || 100) / 100);
+    } catch (e) { console.warn('addScoreEvent error', e); }
+  };
+
+  function getScoreSummaryHTML(){
+    const items = Object.keys(window.simScore.events || {}).map(k => {
+      const e = window.simScore.events[k];
+      const sign = (e.value >= 0) ? '+' : '';
+      return `<li style="margin:6px 0">${e.label}: <strong>${sign}${e.value}%</strong></li>`;
+    }).join('');
+    const percent = clamp(window.simScore.percent || 0, 0, 100);
+    const numeric = Math.round(percent * (window.simScore.max || 100) / 100);
+    return `
+<div style="background:#eef5ff;padding:12px;border-radius:6px;margin-top:12px;text-align:left">
+  <h4 style="margin-top:0">Puntuación</h4>
+  <p><strong>${numeric} / ${window.simScore.max}</strong> — <em>${percent}%</em></p>
+  <ul style="padding-left:18px;margin-top:8px">${items || '<li>No se registraron eventos</li>'}</ul>
+</div>
+`;
+  }
+
+  // Safe wrapper to append summary when results modal is shown
+  function safeWrap(name, fn){
+    var attempts = 0; var maxAttempts = 40;
+    var interval = setInterval(function(){
+      attempts++;
+      if (typeof window[name] === 'function'){
+        var orig = window[name];
+        window[name] = function(){
+          var res = orig.apply(this, arguments);
+          try { fn.apply(this, arguments); } catch(e) { console.warn('wrap fn error', e); }
+          return res;
+        };
+        clearInterval(interval);
+      } else if (attempts >= maxAttempts){
+        // fallback: define function that executes fn when called
+        window[name] = function(){ try { fn.apply(this, arguments); } catch(e){} };
+        clearInterval(interval);
+      }
+    }, 120);
+  }
+
+  safeWrap('showResults', function(){
+    try {
+      var modalContent = document.getElementById('modalContent') || document.querySelector('.modal-content');
+      if (modalContent) modalContent.insertAdjacentHTML('beforeend', getScoreSummaryHTML());
+    } catch(e){ console.warn('append score summary failed', e); }
+  });
+
+  safeWrap('endSimulation', function(){
+    try {
+      var modalContent = document.getElementById('modalContent') || document.querySelector('.modal-content');
+      if (modalContent) modalContent.insertAdjacentHTML('beforeend', getScoreSummaryHTML());
+    } catch(e){}
+  });
+
+  // initialize derived values
+  window.simScore.percent = window.simScore.percent || 0;
+  window.simScore.score = Math.round(clamp(window.simScore.percent,0,100) * window.simScore.max / 100);
+
+  console.log('Dengue-style scoring applied to Tenia simulator (max=' + window.simScore.max + ')');
+})();
+</script>
+<!-- END: Scoring system replaced by dengue-style (adapted for Tenia) -->
+
+
+<!-- MOD: Removed visible scoring block - injected override to prevent score box rendering -->
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  try {
+    // Remove any existing score box immediately
+    var existing = document.getElementById('simScoreBox');
+    if(existing) existing.remove();
+
+    // Provide no-op overrides for functions that build/insert the score HTML
+    window.buildScoreHTML = function(){ return ''; };
+    window.insertScoreIntoResultModal = function(){ /* intentionally removed score display */ };
+    window.recomputeAndInsertScore = function(){ /* intentionally removed score display */ };
+    window.getScoreSummaryHTML = function(){ return ''; };
+
+    // Add defensive CSS to hide any insertion attempts
+    var style = document.createElement('style');
+    style.type = 'text/css';
+    style.id = 'hide-scorebox-style';
+    style.appendChild(document.createTextNode('#simScoreBox, .sim-score, .score-summary { display: none !important; }'));
+    document.head.appendChild(style);
+  } catch (e) {
+    console.warn('Error removing score block:', e);
+  }
+});
+</script>
+<!-- END MOD -->
+
+
+<!-- MOD: Replace displayed "30%" with "40%" when diagnosis is correct -->
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  try {
+    // Helper: normalize text for matching
+    function textIsCorrect(node) {
+      if(!node) return false;
+      var txt = (node.innerText || node.textContent || '').toLowerCase();
+      return txt.indexOf('correcto') !== -1 || txt.indexOf('correct') !== -1 || txt.indexOf('acert') !== -1;
+    }
+
+    // Find all elements containing "30%" or "30 %"
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+    var nodesToChange = [];
+    while(walker.nextNode()){
+      var t = walker.currentNode.nodeValue;
+      if(!t) continue;
+      if(/\b30\s*%/.test(t)){
+        nodesToChange.push(walker.currentNode);
+      }
+    }
+
+    nodesToChange.forEach(function(textNode){
+      var el = textNode.parentElement;
+      // Look near the element (parent, previousSibling, nextSibling, grandparent) for a 'correct' indicator
+      var foundCorrect = textIsCorrect(el) || textIsCorrect(el.parentElement) ||
+                         textIsCorrect(el.previousElementSibling) || textIsCorrect(el.nextElementSibling) ||
+                         (el.querySelector && (el.querySelector('.correct, .diagnosis.correct') !== null));
+
+      // If we detected 'correcto' or 'correct' nearby, replace 30% -> 40%
+      if(foundCorrect){
+        textNode.nodeValue = textNode.nodeValue.replace(/\b30\s*%/gi, '40 %');
+      } else {
+        // If not found nearby, do a safer replacement only for visible score labels that look like they belong to scoring tables:
+        // Check if parent has class names suggesting scoring
+        var cls = (el.className || '').toLowerCase();
+        if(cls.indexOf('score') !== -1 || cls.indexOf('punt') !== -1 || cls.indexOf('porcent') !== -1){
+          textNode.nodeValue = textNode.nodeValue.replace(/\b30\s*%/gi, '40 %');
+        }
+      }
+    });
+
+    // Also override any function that programmatically returns percentage strings "30%" by monkey-patching common builders
+    // This attempts to catch simple JS builders like function build... or compute... that include "30"
+    var origToString = Object.prototype.toString;
+    // defensive: look for global vars named pct, percent, percentage
+    try {
+      ['pct','percent','percentage','porcentaje','scorePercent','score_pct'].forEach(function(name){
+        try {
+          if(window[name] === 30) window[name] = 40;
+        } catch(e){}
+      });
+    } catch(e){}
+
+    // Observe DOM mutations - if something later inserts "30%" replace it with "40%" with same detection rule
+    var obs = new MutationObserver(function(muts){
+      muts.forEach(function(m){
+        m.addedNodes.forEach(function(node){
+          if(node.nodeType === Node.TEXT_NODE){
+            if(/\b30\s*%/.test(node.nodeValue)){
+              var parent = node.parentElement;
+              var foundCorrect = textIsCorrect(parent) || textIsCorrect(parent.parentElement);
+              var cls = (parent.className || '').toLowerCase();
+              if(foundCorrect || cls.indexOf('score') !== -1 || cls.indexOf('punt') !== -1){
+                node.nodeValue = node.nodeValue.replace(/\b30\s*%/gi, '40 %');
+              }
+            }
+          } else if(node.nodeType === Node.ELEMENT_NODE){
+            // replace inside element's text if needed
+            var txt = node.innerText || node.textContent || '';
+            if(/\b30\s*%/.test(txt)){
+              var foundCorrect = textIsCorrect(node) || textIsCorrect(node.parentElement);
+              var cls = (node.className || '').toLowerCase();
+              if(foundCorrect || cls.indexOf('score') !== -1 || cls.indexOf('punt') !== -1){
+                node.innerHTML = node.innerHTML.replace(/\b30\s*%/gi, '40 %');
+              }
+            }
+          }
+        });
+      });
+    });
+    obs.observe(document.body, {childList:true, subtree:true, characterData:true});
+  } catch(e) {
+    console.warn('Error applying 30%->40% modifier:', e);
+  }
+});
+</script>
+<!-- END MOD -->
+
+
+<!-- MOD: When diagnosis is correct, increase final displayed percentage by 10 points (30% -> 40%) and cap at 100 -->
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  try {
+    function pageHasCorrectDiagnosis() {
+      // Search for nodes that indicate a correct diagnosis
+      var terms = ['correcto','correct','acert','diagnostico correcto','diagnóstico correcto','diagnosis correcta'];
+      var text = (document.body.innerText || '').toLowerCase();
+      for(var i=0;i<terms.length;i++){
+        if(text.indexOf(terms[i]) !== -1) return true;
+      }
+      // also check for elements with classes suggesting correctness
+      var els = document.querySelectorAll('.correct, .diagnosis.correct, .is-correct, .acertado');
+      if(els && els.length>0) return true;
+      return false;
+    }
+
+    var shouldBoost = pageHasCorrectDiagnosis();
+    var BOOST = 10; // add 10 percentage points when diagnosis is correct (40% vs 30%)
+    var alreadyAdjustedAttr = 'data-final-adjusted-by-boost';
+
+    function adjustTextNodeValue(node){
+      if(!node || !node.nodeValue) return;
+      var t = node.nodeValue;
+      // Replace literal "30%" with "40 %" (safe visual change)
+      if(/\b30\s*%/.test(t)){
+        node.nodeValue = t.replace(/\b30\s*%/gi, '40 %');
+        t = node.nodeValue;
+      }
+      // Look for "NN / 100" pattern
+      var m = t.match(/(\b\d{1,3})\s*\/\s*100/);
+      if(m && shouldBoost){
+        var n = parseInt(m[1],10);
+        if(!isNaN(n)){
+          var newN = Math.min(n + BOOST, 100);
+          if(newN !== n){
+            node.nodeValue = node.nodeValue.replace(m[0], newN + ' / 100');
+            node.parentElement && node.parentElement.setAttribute && node.parentElement.setAttribute(alreadyAdjustedAttr, 'true');
+          }
+        }
+      }
+      // Look for "NN%" pattern (percentage shown as percent sign)
+      var m2 = t.match(/(\b\d{1,3})\s*%/);
+      if(m2 && shouldBoost){
+        var n2 = parseInt(m2[1],10);
+        if(!isNaN(n2)){
+          var newN2 = Math.min(n2 + BOOST, 100);
+          if(newN2 !== n2){
+            node.nodeValue = node.nodeValue.replace(m2[0], newN2 + ' %');
+            node.parentElement && node.parentElement.setAttribute && node.parentElement.setAttribute(alreadyAdjustedAttr, 'true');
+          }
+        }
+      }
+    }
+
+    // Initial pass: adjust existing text nodes in the body
+    (function initialAdjust(){
+      var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+      var nodes = [];
+      while(walker.nextNode()){
+        nodes.push(walker.currentNode);
+      }
+      nodes.forEach(function(n){ adjustTextNodeValue(n); });
+    })();
+
+    // Observe future changes and adjust dynamically
+    var observer = new MutationObserver(function(muts){
+      muts.forEach(function(mut){
+        // text changes
+        if(mut.type === 'characterData' && mut.target.nodeType === 3){
+          adjustTextNodeValue(mut.target);
+        }
+        // added nodes
+        if(mut.addedNodes && mut.addedNodes.length){
+          mut.addedNodes.forEach(function(node){
+            if(node.nodeType === 3){
+              adjustTextNodeValue(node);
+            } else if(node.nodeType === 1){
+              // element node - check its text nodes
+              var walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, null, false);
+              var arr = [];
+              while(walker.nextNode()) arr.push(walker.currentNode);
+              arr.forEach(function(n){ adjustTextNodeValue(n); });
+            }
+          });
+        }
+      });
+    });
+    observer.observe(document.body, {childList:true, subtree:true, characterData:true});
+
+    // For safety: expose a manual re-run in case you want to force recalculation from console:
+    window.__apply_final_boost = function(){
+      shouldBoost = pageHasCorrectDiagnosis();
+      var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+      var nodes = [];
+      while(walker.nextNode()){
+        nodes.push(walker.currentNode);
+      }
+      nodes.forEach(function(n){ adjustTextNodeValue(n); });
+      return shouldBoost;
+    };
+  } catch(e){
+    console.warn('Error applying final-score boost:', e);
+  }
+});
+</script>
+<!-- END MOD -->
+</body>
+</html>
