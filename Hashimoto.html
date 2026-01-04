@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SIMULADOR CLÍNICO AVANZADO - Enfermedad de Hashimoto - RESET TIEMPO</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui, "Segoe UI", Roboto, sans-serif;background:#f5f6fa;color:#2c3e50;font-size:13px}
+.medical-header{background:linear-gradient(135deg,#2c3e50,#34495e);color:#fff;padding:8px 0;position:fixed;top:0;left:0;right:0;z-index:100}
+.header-content{max-width:1400px;margin:0 auto;padding:0 15px;display:flex;justify-content:space-between;align-items:center}
+.system-title{font-size:1.3em;font-weight:700}
+.timer-bar{position:fixed;top:50px;left:0;right:0;background:#fff;padding:8px 15px;box-shadow:0 1px 4px rgba(0,0,0,0.08);z-index:99;display:flex;justify-content:space-between;align-items:center}
+.main-timer{background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;padding:8px 15px;border-radius:4px;font-size:1.6em;font-weight:700;font-family:"Courier New",monospace;min-width:120px;text-align:center}
+.main-timer.critical{animation:criticalFlash 1s infinite}
+@keyframes criticalFlash{0%,50%{opacity:1}51%,100%{opacity:.6}}
+.critical-alert{background:#dc3545;color:#fff;padding:6px 12px;border-radius:15px;font-weight:600;font-size:.9em;animation:alertPulse 2s infinite}
+@keyframes alertPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.main-container{margin-top:95px;max-width:1400px;margin-left:auto;margin-right:auto;padding:10px;display:grid;grid-template-columns:1.3fr 1fr;gap:15px;min-height:calc(100vh - 105px)}
+.panel{background:#fff;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.08);display:flex;flex-direction:column;overflow:hidden}
+.panel-header{color:#fff;padding:10px 15px;font-size:1em;font-weight:600}
+.patient-header{background:linear-gradient(135deg,#3498db,#2980b9)}
+.treatment-header{background:linear-gradient(135deg,#27ae60,#229954)}
+.panel-content{padding:12px;flex:1;overflow:auto}
+.info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.info-card{background:#f8f9fa;padding:6px;border-radius:4px;text-align:center;border-left:2px solid #3498db}
+.info-label{font-size:.7em;color:#666;text-transform:uppercase;letter-spacing:.3px}
+.info-value{font-size:.85em;font-weight:600;color:#2c3e50;margin-top:1px}
+.patient-visual-container{display:grid;grid-template-columns:140px 1fr;gap:15px;margin:10px 0;height:180px}
+.patient-visual{display:flex;justify-content:center;align-items:center;background:#f8f9fa;border-radius:6px;padding:10px;position:relative}
+.ecg-monitor{background:#000;border-radius:6px;padding:10px;position:relative;border:2px solid #222}
+.ecg-header{color:#00ff00;font-family:"Courier New",monospace;font-size:.8em;text-align:center;margin-bottom:6px}
+.ecg-layer{position:relative;height:120px}
+canvas#ecgCanvas{width:100%;height:120px;background:#000;border-radius:2px;display:block}
+.ecg-info{color:#00ff00;font-family:"Courier New",monospace;font-size:.7em;text-align:center;margin-top:6px}
+.ecg-led{position:absolute;top:8px;right:8px;width:10px;height:10px;border-radius:50%;box-shadow:0 0 6px #00ff00;background:#00ff00}
+.sound-controls{display:flex;gap:8px;align-items:center;margin-top:8px;color:#fff}
+.sound-btn{background:linear-gradient(135deg,#444,#222);padding:6px 8px;border-radius:6px;border:1px solid #666;cursor:pointer;color:#fff}
+.sound-label{font-size:.8em;color:#ddd;margin-right:6px}
+input[type="range"]{appearance:none;height:6px;border-radius:6px;background:#333;outline:none}
+input[type="range"]::-webkit-slider-thumb{appearance:none;width:14px;height:14px;border-radius:50%;background:#00ff66;cursor:pointer;border:2px solid #fff}
+.body-silhouette{width:100px;height:160px;position:relative;display:block}
+.body-part{position:absolute;border:2px solid #34495e;border-radius:4px;transform-origin:center center}
+.head{width:25px;height:30px;background:#f39c12;border-radius:50%;top:0;left:50%;transform:translate(-50%,0)}
+.torso{width:35px;height:50px;background:#f39c12;top:30px;left:50%;transform:translate(-50%,0);border-radius:8px}
+.arm-left,.arm-right{width:12px;height:40px;background:#d35400;top:35px;border-radius:6px}
+.arm-left{left:10px} .arm-right{right:10px}
+.leg-left,.leg-right{width:14px;height:60px;background:#f39c12;border-radius:6px;bottom:0}
+.leg-left{left:28px} .leg-right{right:28px}
+.compact-vitals{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}
+.vital-compact{background:#000;color:#00ff00;padding:8px;border-radius:4px;font-family:"Courier New",monospace;position:relative;border:1px solid #333;text-align:center}
+.vital-compact.critical{color:#ff0000;border-color:#dc3545;animation:criticalAlarm 1.5s infinite}
+@keyframes criticalAlarm{0%,50%{background:#000}51%,100%{background:#220000}}
+.vital-value-compact{font-size:1.1em;font-weight:700} .vital-label-compact{font-size:.65em;opacity:.8;margin-top:2px}
+.pain-meter-compact{background:linear-gradient(135deg,#f39c12,#e67e22);color:#fff;padding:8px;border-radius:4px;text-align:center;margin:8px 0}
+.pain-scale-compact{font-size:1.8em;font-weight:700}
+/* --- cambios: sintomas siempre visibles --- */
+.symptoms-timeline{background:#f8f9fa;border-radius:4px;padding:8px;margin:8px 0;border-left:3px solid #3498db; /* quitar max-height/scroll */}
+.symptom-group{margin-bottom:6px;padding:6px;background:#fff;border-radius:3px;border-left:2px solid #dee2e6;opacity:0.95}
+.symptom-group.active{border-left-color:#e74c3e;background:#fff5f5}
+.form-group{margin-bottom:10px} .form-label{display:block;margin-bottom:4px;font-weight:600;color:#34495e;font-size:.85em} .form-control{width:100%;padding:6px 8px;border:1px solid #dee2e6;border-radius:3px;font-size:.8em}
+.btn{background:linear-gradient(135deg,#27ae60,#229954);color:#fff;border:0;padding:8px 12px;border-radius:3px;font-size:.8em;font-weight:600;cursor:pointer}
+.btn.urgent{background:linear-gradient(135deg,#dc3545,#8b0000);animation:urgentPulse 2s infinite}
+@keyframes urgentPulse{0%,100%{box-shadow:0 1px 2px rgba(220,53,69,.3)}50%{box-shadow:0 2px 6px rgba(220,53,69,.6)}}
+.pharmacology-alert{padding:8px;border-radius:3px;margin:6px 0;font-size:.75em;font-weight:600}
+.alert-success{background:#ccf2e8;border:1px solid #99e6d1;color:#155724}
+.alert-warning{background:#fff3cd;border:1px solid #ffeaa7;color:#856404}
+.alert-danger{background:#f8d7da;border:1px solid #f5c6cb;color:#721c24}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(44,62,80,.95);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-content{background:#fff;padding:20px;border-radius:6px;max-width:800px;width:90%;max-height:80vh;overflow:auto;text-align:center}
+.success-result{background:linear-gradient(135deg,#27ae60,#229954);color:#fff;padding:15px;border-radius:6px;margin:10px 0}
+.failure-result{background:linear-gradient(135deg,#e74c3e,#c0392b);color:#fff;padding:15px;border-radius:6px;margin:10px 0}
+.result-icon{font-size:3em;margin:10px 0}
+.paused-overlay{position:absolute;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.9);font-weight:700;font-size:1.2em;pointer-events:none}
+.patient-history{background:#fff;padding:8px;border-radius:6px;border:1px solid #e6eef7;margin:10px 0}
+.patient-history h4{margin-bottom:6px;font-size:.9em}
+@media (max-width:900px){ .main-container{grid-template-columns:1fr} .header-content{flex-direction:column;gap:6px} }
+</style>
+</head>
+<body>
+<div class="medical-header">
+  <div class="header-content">
+    <div>
+      <div class="system-title">SIMULADOR FARMACOLÓGICO AVANZADO</div>
+      <div style="font-size:.8em;opacity:.9">Escuela de Medicina | Endocrinología Clínica de Urgencias</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:.8em"></div>
+      <div style="font-size:.7em;opacity:.8"></div>
+    </div>
+  </div>
+</div>
+
+<div class="timer-bar">
+  <div class="main-timer" id="mainTimer">05:00</div>
+  <div style="display:flex;gap:12px;align-items:center">
+    <div style="color:#666;font-size:.9em">Estado: <span id="patientStatus">Evaluación inicial</span></div>
+  </div>
+</div>
+
+<div class="main-container">
+  <div class="panel patient-panel">
+    <div class="panel-header patient-header">MONITOREO DEL PACIENTE</div>
+    <div class="panel-content">
+      <div class="info-grid">
+        <div class="info-card"><div class="info-label">Paciente</div><div class="info-value">Melany Ramirez</div></div>
+        <div class="info-card"><div class="info-label">Edad</div><div class="info-value">20 años</div></div>
+        <div class="info-card"><div class="info-label">Peso</div><div class="info-value">62 kg</div></div>
+        <div class="info-card"><div class="info-label">Talla</div><div class="info-value">1.58 m</div></div>
+      </div>
+
+      <div class="patient-visual-container">
+        <div class="patient-visual" id="visualWrap">
+          <div class="body-silhouette" id="patientBody">
+            <div class="body-part head" id="partHead"></div>
+            <div class="body-part torso" id="partTorso"></div>
+            <div class="body-part arm-left" id="partArmL"></div>
+            <div class="body-part arm-right" id="partArmR"></div>
+            <div class="body-part leg-left" id="partLegL"></div>
+            <div class="body-part leg-right" id="partLegR"></div>
+          </div>
+        </div>
+
+        <div class="ecg-monitor" id="ecgMonitor">
+          <div class="ecg-led" id="ecgLed"></div>
+          <div class="ecg-header">ELECTROCARDIOGRAMA</div>
+          <div class="ecg-layer">
+            <canvas id="ecgCanvas" width="800" height="120"></canvas>
+            <div class="paused-overlay" id="ecgPaused" style="display:none">PAUSADO</div>
+          </div>
+          <div class="ecg-info">FC: <span id="ecgRate">60</span> lpm | Ritmo: <span id="ecgRhythm">Sinusal</span></div>
+
+          <div class="sound-controls" style="position:relative;margin-top:10px">
+            <div class="sound-label">Sonido monitor:</div>
+            <button id="soundToggle" class="sound-btn">Activar</button>
+            <div style="display:flex;align-items:center;margin-left:8px">
+              <input id="soundVolume" type="range" min="0" max="1" step="0.01" value="0.6" style="width:120px" title="Volumen"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pain-meter-compact">
+        <div style="font-size:.8em">INTENSIDAD SÍNTOMAS (fatiga/astenia)</div>
+        <div class="pain-scale-compact" id="painScore">6</div>
+        <div style="font-size:.7em">Astenia marcada</div>
+      </div>
+
+      <div class="compact-vitals">
+        <div class="vital-compact" id="hrMonitor"><div class="vital-value-compact" id="heartRate">60</div><div class="vital-label-compact">FC (lpm)</div></div>
+        <div class="vital-compact" id="bpMonitor"><div class="vital-value-compact" id="bloodPressure">110/70</div><div class="vital-label-compact">PA (mmHg)</div></div>
+        <div class="vital-compact" id="tempMonitor"><div class="vital-value-compact" id="temperature">36.5</div><div class="vital-label-compact">TEMP (°C)</div></div>
+        <div class="vital-compact" id="spo2Monitor"><div class="vital-value-compact" id="oxygenSat">98</div><div class="vital-label-compact">SpO₂ (%)</div></div>
+      </div>
+
+      <!-- Antecedentes añadidos -->
+      <div class="patient-history" id="patientHistory">
+        <h4>Antecedentes personales</h4>
+        <ul style="margin-left:14px">
+          <li>Aumento de peso progresivo (últimos 6 meses)</li>
+          <li>Intolerancia al frío y piel seca</li>
+          <li>Fatiga marcada, lentitud en movimientos y constipación</li>
+          <li>Caída de cabello y menstruaciones irregulares</li>
+          
+        </ul>
+      </div>
+
+      <div class="symptoms-timeline">
+        <h4 style="margin-bottom:8px;color:#2c3e50;font-size:.9em">EVOLUCIÓN CLÍNICA</h4>
+        <div id="symptomsContainer">
+          <div class="symptom-group active">
+            <div class="time-stamp">T+00:00 - Ingreso</div>
+            <div class="symptom-list">• Fatiga progresiva y aumento de peso<br>• Intolerancia al frío, piel seca y estreñimiento<br>• Bradicardia leve y astenia (EVA: 6/10)</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="panel treatment-panel">
+    <div class="panel-header treatment-header">PROTOCOLO FARMACOLÓGICO</div>
+    <div class="panel-content">
+
+      <div class="form-group">
+        <label class="form-label">Selección farmacológica:</label>
+        <select class="form-control" id="drugSelection">
+          <option value="">-- Seleccionar fármaco/intervención --</option>
+          <option value="levothyroxine_oral">Levotiroxina (oral)</option>
+          <option value="levothyroxine_iv">Levotiroxina IV (emergencia - myxedema)</option>
+          <option value="liothyronine">Liotironina (T3)</option>
+          <option value="glucocorticoids">Corticosteroides (hidrocortisona/dexametasona)</option>
+          <option value="passive_warming">Calentamiento pasivo y medidas de soporte</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="display:flex;gap:8px;align-items:center">
+        <div style="flex:1">
+          <label class="form-label">Dosis (número):</label>
+          <input class="form-control" id="drugDose" type="number" min="0.1" max="10000" step="0.1" placeholder="Dosis" />
+        </div>
+        <div style="width:70px;margin-top:22px;text-align:left"><span id="doseUnit">µg</span></div>
+      </div>
+
+      <button class="btn urgent" id="administerDrug">ADMINISTRAR MEDICAMENTO</button>
+      <div id="drugEffects" style="display:none;margin-top:8px"></div>
+
+      <hr style="margin:12px 0;border:1px solid #dee2e6">
+
+      <div class="form-group">
+        <label class="form-label">Diagnóstico Diferencial:</label>
+        <select class="form-control" id="diagnosis">
+          <option value="">-- Seleccionar diagnóstico --</option>
+          <option value="hashimoto">Tiroiditis autoinmune (Enfermedad de Hashimoto)</option>
+          <option value="iatrogenic">Hipotiroidismo iatrogénico (post-tiroidectomía / post-yodo)</option>
+          <option value="subacute_thyroiditis">Tiroiditis subaguda (fase hipotiroidea)</option>
+          <option value="central">Hipotiroidismo central</option>
+          <option value="euthyroid_sick">Síndrome del enfermo eutiroideo</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <fieldset style="border:1px solid #e6eef7;padding:12px;border-radius:6px;background:#fbfcfe">
+          <legend style="font-weight:700;padding:0 6px">Estudios de laboratorio</legend>
+          <div style="display:flex;flex-direction:column;gap:8px;padding-top:6px">
+            <label><input type="checkbox" name="labs" value="tsh" class="labCheckbox"> <strong>TSH</strong></label>
+            <label><input type="checkbox" name="labs" value="ft4" class="labCheckbox"> <strong>Free T4 (T4 libre)</strong></label>
+            <label><input type="checkbox" name="labs" value="anti_tpo" class="labCheckbox"> <strong>Anticuerpos anti-TPO</strong></label>
+            <label><input type="checkbox" name="labs" value="anti_tg" class="labCheckbox"> <strong>Anticuerpos anti-tiroglobulina</strong></label>
+            <label><input type="checkbox" name="labs" value="ecg" class="labCheckbox"> <strong>ECG</strong></label>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+            <button id="confirmLabs" class="btn">Confirmar estudios de laboratorio</button>
+            <div id="labStatus" style="font-size:.85em;color:#666">Seleccione los estudios y presione confirmar.</div>
+          </div>
+          <div id="labResults" style="margin-top:10px;display:none;background:#fff;padding:10px;border-radius:6px;border:1px solid #e9f3ff"></div>
+        </fieldset>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tratamiento Definitivo:</label>
+        <select class="form-control" id="definiteTreatment">
+          <option value="">-- Seleccionar intervención --</option>
+          <option value="levothyroxine_replacement">Reemplazo con Levotiroxina (oral)</option>
+          <option value="iv_support_myxedema">Soporte IV + Hormonas (myxedema grave)</option>
+          <option value="hospitalize_support">Hospitalización y medidas de soporte</option>
+          <option value="endocrinology_followup">Control con endocrinología y titulación de dosis</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Seguimiento:</label>
+        <select class="form-control" id="followUp">
+          <option value="">-- Seleccionar seguimiento --</option>
+          <option value="endocrinology_followup">Control con endocrinología y TFTs seriadas</option>
+          <option value="monitor_24h_obs">Observación hospitalaria para control y titulación</option>
+          <option value="ambulatory_return">Control ambulatorio en 4-6 semanas</option>
+        </select>
+      </div>
+
+      <button class="btn" id="submitTreatment">CONFIRMAR PLAN TERAPÉUTICO</button>
+      <div id="treatmentResponse" style="display:none;margin-top:8px"></div>
+
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="resultModal">
+  <div class="modal-content">
+    <h2 id="modalTitle">Resultado</h2>
+    <div id="modalContent"></div>
+    <button class="btn" id="newSimBtn">Nueva Simulación</button>
+  </div>
+</div>
+
+<script>
+/* ECG integrado con sonido: se mantiene la misma funcionalidad visual/sonora del archivo base. */
+(function(){
+  const canvas = document.getElementById('ecgCanvas');
+  const ctx = canvas.getContext('2d');
+  const parent = canvas.parentElement;
+  let dpr = window.devicePixelRatio || 1;
+
+  let audioCtx = null;
+  let masterGain = null;
+  let soundEnabled = false;
+  const defaultVolume = 0.6;
+
+  function ensureAudio(){
+    if (!audioCtx){
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = defaultVolume;
+        masterGain.connect(audioCtx.destination);
+      } catch(e){
+        console.warn('AudioContext no soportado', e);
+      }
+    } else if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function setVolume(v){ if (masterGain) masterGain.gain.value = v; }
+
+  function playBeep(){
+    if (!soundEnabled) return;
+    ensureAudio();
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    const o1 = audioCtx.createOscillator();
+    const g1 = audioCtx.createGain();
+    o1.type = 'sine'; o1.frequency.value = 900;
+    g1.gain.setValueAtTime(0, now);
+    g1.gain.linearRampToValueAtTime(0.9, now + 0.002);
+    g1.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    o1.connect(g1); g1.connect(masterGain);
+
+    const o2 = audioCtx.createOscillator();
+    const g2 = audioCtx.createGain();
+    o2.type = 'triangle'; o2.frequency.value = 1300;
+    g2.gain.setValueAtTime(0, now);
+    g2.gain.linearRampToValueAtTime(0.5, now + 0.002);
+    g2.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+    o2.connect(g2); g2.connect(masterGain);
+
+    o1.start(now); o2.start(now); o1.stop(now + 0.1); o2.stop(now + 0.12);
+  }
+
+  let isRunning = false; let raf = null; let ecgStartTime = 0; let lastFrame = 0; let writeX = 0; let ecgData = []; let totalBeats = 0;
+  const ecgPattern = [0,0,0,0.02,0.04,0.08,0.12,0.08,0.03,0,-0.05,-0.12,-0.06,0,0.15,0.8,1.0,0.78,0.28,-0.15,-0.45,-0.18,0.05,0.22,0.14,0.06,0.02,0,0,0,0,0,0];
+  const sampleSpacing = 3;
+
+  function resizeCanvas(){
+    const rect = parent.getBoundingClientRect();
+    const cssW = Math.max(240, Math.floor(rect.width));
+    const cssH = Math.max(80, Math.floor(rect.height));
+    dpr = window.devicePixelRatio || 1;
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const visibleLeft = writeX - cssW;
+    ecgData = ecgData.filter(p => p.x >= visibleLeft - 120);
+  }
+
+  function discreteBPM(secondsElapsed){
+    // Para hipotiroidismo visual: base baja y tendencia a disminuir si progresa
+    const base = 60;
+    const minutes = Math.floor(secondsElapsed / 60);
+    return Math.max(30, base - 5 * minutes);
+  }
+
+  function clearCanvas(){ ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width/dpr, canvas.height/dpr); }
+
+  function frame(ts){
+    if (!lastFrame) lastFrame = ts; const dt = (ts - lastFrame) / 1000; lastFrame = ts;
+    if (isRunning){
+      const elapsedSec = (ts - ecgStartTime) / 1000;
+      const hr = (forceHR !== null) ? forceHR : discreteBPM(elapsedSec);
+      const beatInterval = 60 / hr;
+      const pxPerBeat = ecgPattern.length * sampleSpacing;
+      const pixelPerSecond = pxPerBeat / beatInterval;
+      writeX += pixelPerSecond * dt;
+      const expectedBeats = Math.floor(elapsedSec / beatInterval) + 1;
+      while (totalBeats < expectedBeats){
+        const baseX = writeX; const centerY = (canvas.height / dpr) / 2;
+        for (let i=0;i<ecgPattern.length;i++){ const px = baseX + i * sampleSpacing; const vy = centerY + (-ecgPattern[i] * ((canvas.height/dpr) * 0.28)); ecgData.push({x: px, y: vy}); }
+        totalBeats++; try { playBeep(); } catch(e){ console.warn('error playing beep', e); }
+      }
+      const centerY = (canvas.height / dpr) / 2; ecgData.push({x: writeX, y: centerY});
+      const visibleLeft = writeX - (canvas.width / dpr); ecgData = ecgData.filter(p => p.x >= visibleLeft - 80);
+      clearCanvas();
+      if (ecgData.length > 1){ ctx.beginPath(); const offset = writeX - (canvas.width / dpr); ctx.moveTo(ecgData[0].x - offset, ecgData[0].y); for (let i=1;i<ecgData.length;i++){ ctx.lineTo(ecgData[i].x - offset, ecgData[i].y); } ctx.strokeStyle = '#00ff66'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.shadowColor = '#00ff66'; ctx.shadowBlur = 6; ctx.stroke(); ctx.shadowBlur = 0; }
+      document.getElementById('ecgRate').textContent = Math.round(hr);
+      document.getElementById('heartRate').textContent = Math.round(hr);
+      if (hr > 150) document.getElementById('ecgRhythm').textContent = 'Taquicardia';
+      else if (hr < 60) document.getElementById('ecgRhythm').textContent = 'Bradicardia';
+      else document.getElementById('ecgRhythm').textContent = 'Sinusal';
+    }
+    raf = requestAnimationFrame(frame);
+  }
+
+  function init(){ resizeCanvas(); window.addEventListener('resize', resizeCanvas); raf = requestAnimationFrame(frame); }
+  function start(){ if (!isRunning){ isRunning = true; ecgStartTime = performance.now(); lastFrame = performance.now(); writeX = 0; ecgData = []; totalBeats = 0; } if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }
+  function stop(){ isRunning = false; }
+  function reset(){ stop(); lastFrame = 0; writeX = 0; ecgData = []; totalBeats = 0; clearCanvas(); document.getElementById('ecgRate').textContent = '60'; document.getElementById('heartRate').textContent = '60'; document.getElementById('ecgRhythm').textContent = 'Sinusal'; }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('soundToggle'); const vol = document.getElementById('soundVolume');
+    btn.addEventListener('click', () => { if (!soundEnabled){ ensureAudio(); setTimeout(() => { soundEnabled = true; btn.textContent = 'Sonido ON'; btn.style.background = 'linear-gradient(135deg,#0b6623,#0f9d58)'; }, 80); } else { soundEnabled = false; btn.textContent = 'Activar'; btn.style.background = ''; } });
+    vol.addEventListener('input', (e) => { const v = parseFloat(e.target.value); setVolume(v); });
+  });
+  window.ECGSim = { init, start, stop, reset };
+})();
+
+let gameTime = 300; let elapsedTime = 0; let gameRunning = false; let gameTimer = null; let treatmentGivenEffective = false; let simulationFailed = false; let forceHR = null;
+
+function addSymptom(timestamp, symptoms) {
+  const container = document.getElementById('symptomsContainer'); if (!container) return; const div = document.createElement('div'); div.className = 'symptom-group new'; const symptomsHTML = symptoms.map(s => `• ${s}`).join('<br>'); div.innerHTML = `\n    <div class="time-stamp">${timestamp}</div>\n    <div class="symptom-list">${symptomsHTML}</div>\n  `; container.appendChild(div); setTimeout(() => { div.classList.remove('new'); }, 2000);
+}
+
+function updateVitals(hr, bp, temp, spo2) {
+  document.getElementById('heartRate').textContent = hr;
+  document.getElementById('bloodPressure').textContent = bp;
+  document.getElementById('temperature').textContent = (typeof temp === 'number') ? temp.toFixed(1) : temp;
+  document.getElementById('oxygenSat').textContent = spo2;
+
+  const hrEl = document.getElementById('hrMonitor'); const spo2El = document.getElementById('spo2Monitor');
+  if (hr >= 130) hrEl.classList.add('critical'); else hrEl.classList.remove('critical');
+  if (spo2 < 92) spo2El.classList.add('critical'); else spo2El.classList.remove('critical');
+}
+
+function showAlert(type, message) {
+  const effectsDiv = document.getElementById('drugEffects'); effectsDiv.style.display = 'block'; effectsDiv.innerHTML = `<div class="pharmacology-alert alert-${type}">${message}</div>`;
+}
+
+function formatTime(seconds) { const mm = Math.floor(seconds / 60).toString().padStart(2, '0'); const ss = (seconds % 60).toString().padStart(2, '0'); return `T+${mm}:${ss}`; }
+
+function checkTimedEvents() {
+  if (elapsedTime === 0) {
+    addSymptom('T+00:00', [
+      'Ingreso por fatiga, ganancia de peso y letargo (meses)',
+      'Intolerancia al frío y piel seca',
+      'Signos vitales inicialmente: bradicardia leve'
+    ]);
+    updateVitals(62, '110/70', 36.5, 98);
+    document.getElementById('patientStatus').textContent = 'Evaluación inicial - sospecha hipotiroidismo';
+  } else if (elapsedTime === 60) {
+    addSymptom('T+01:00', [
+      'Empeoramiento de astenia y lentitud',
+      'Aumento de somnolencia y confusión leve',
+      'Bradicardia más marcada'
+    ]);
+    updateVitals(50, '105/65', 35.8, 98);
+  } else if (elapsedTime === 120) {
+    addSymptom('T+02:00', [
+      'Hipotermia progresiva y bradicardia importante',
+      'Hipotensión y somnolencia profunda',
+      'Riesgo de progresión a coma mixedematoso'
+    ]);
+    updateVitals(40, '95/60', 34.0, 97);
+    document.getElementById('patientStatus').textContent = 'Inestabilidad hemodinámica - considerar ingreso y manejo urgente';
+  } else if (elapsedTime === 240) {
+    addSymptom('T+04:00', [
+      'Coma mixedematoso: hipotermia severa, bradicardia extrema, hipotensión',
+      'Alteración profunda del nivel de conciencia y falla orgánica'
+    ]);
+    updateVitals(30, '70/40', 32.0, 92);
+    document.getElementById('patientStatus').textContent = 'Coma mixedematoso - manejo urgente';
+    simulationFailed = true; forceHR = 30; document.getElementById('ecgRate').textContent = 30; document.getElementById('heartRate').textContent = 30;
+  }
+}
+
+function startSimulation() {
+  gameRunning = true; gameTime = 300; elapsedTime = 0; treatmentGivenEffective = false; simulationFailed = false; forceHR = null;
+  document.getElementById('painScore').textContent = '6'; document.getElementById('patientStatus').textContent = 'Evaluación inicial';
+  const container = document.getElementById('symptomsContainer'); container.innerHTML = `
+    <div class="symptom-group active">
+      <div class="time-stamp">T+00:00 - Ingreso</div>
+      <div class="symptom-list">• Fatiga progresiva y aumento de peso<br>• Intolerancia al frío y piel seca<br>• Bradicardia leve</div>
+    </div>
+  `;
+
+  if (gameTimer) clearInterval(gameTimer);
+  gameTimer = setInterval(() => {
+    if (!gameRunning) return;
+    gameTime--; elapsedTime = 300 - gameTime; updateTimerUI(); checkTimedEvents();
+    if (elapsedTime >= 60 && elapsedTime < 270) {
+      const minT = 30.0, maxT = 36.6; const temp = Math.round((Math.random() * (maxT - minT) + minT) * 10) / 10; const hrEl = document.getElementById('heartRate').textContent; const bpEl = document.getElementById('bloodPressure').textContent; const spo2El = document.getElementById('oxygenSat').textContent; updateVitals(parseInt(hrEl) || 0, bpEl || '110/70', temp, parseInt(spo2El) || 95);
+    }
+    if (gameTime <= 0) { endSimulation('Tiempo agotado - resultado adverso'); }
+  }, 1000);
+  if (window.ECGSim && typeof window.ECGSim.start === 'function') window.ECGSim.start();
+}
+
+function stopSimulation() { gameRunning = false; if (gameTimer) { clearInterval(gameTimer); gameTimer = null; } if (window.ECGSim && typeof window.ECGSim.stop === 'function') window.ECGSim.stop(); }
+
+function updateTimerUI() {
+  const mm = Math.floor(gameTime / 60).toString().padStart(2, '0'); const ss = (gameTime % 60).toString().padStart(2, '0'); document.getElementById('mainTimer').textContent = `${mm}:${ss}`;
+  if (!simulationFailed && gameTime <= 30) { forceHR = 20; document.getElementById('ecgRate').textContent = 20; document.getElementById('heartRate').textContent = 20; } else if (!simulationFailed) { forceHR = null; }
+  if (gameTime <= 120) document.getElementById('mainTimer').classList.add('critical'); else document.getElementById('mainTimer').classList.remove('critical');
+}
+
+// Reglas de dosis adaptadas a hipotiroidismo / myxedema
+const doseRules = {
+  'levothyroxine_oral': {min:25, max:200, unit:'µg', note:'dosis diaria en adultos; individualizar según peso'},
+  'levothyroxine_iv': {min:200, max:500, unit:'µg', note:'bolus IV en myxedema grave (simulado)'},
+  'liothyronine': {min:5, max:50, unit:'µg', note:'T3 en microdosis en situaciones selectas'},
+  'glucocorticoids': {min:50, max:200, unit:'mg', note:'hidrocortisona/dexametasona en myxedema hasta descartar insuficiencia suprarrenal'},
+  'passive_warming': {min:0, max:0, unit:'n/a', note:'medida de soporte - sin dosis específica'}
+};
+
+function administerDrug() {
+  const drug = document.getElementById('drugSelection').value;
+  const doseInput = parseFloat(document.getElementById('drugDose').value);
+  if (!drug || (drug !== 'passive_warming' && (isNaN(doseInput) || doseInput <= 0))) { showAlert('warning', 'Seleccione fármaco y dosis válida.'); return; }
+
+  const rule = doseRules[drug]; let doseIsGood = false;
+  if (drug === 'passive_warming') doseIsGood = true;
+  else if (rule) { if (rule.min === rule.max) doseIsGood = Math.abs(doseInput - rule.min) <= (rule.tol || 0); else doseIsGood = (doseInput >= rule.min && doseInput <= rule.max); }
+
+  if (doseIsGood) {
+    treatmentGivenEffective = true; let message = ''; 
+    if (drug === 'levothyroxine_oral') { message = `Levotiroxina oral administrada (${doseInput} µg) — inicio de reemplazo; mejora gradual de síntomas.`; updateVitals(Math.min(90, parseInt(document.getElementById('heartRate').textContent) + 10), '110/70', Math.max(36.5, parseFloat(document.getElementById('temperature').textContent) + 0.4), Math.max(95, parseInt(document.getElementById('oxygenSat').textContent))); document.getElementById('painScore').textContent = Math.max(0, parseInt(document.getElementById('painScore').textContent) - 2); }
+    else if (drug === 'levothyroxine_iv') { message = `Levotiroxina IV administrada (${doseInput} µg) — intervención de emergencia en myxedema.`; updateVitals(Math.min(110, parseInt(document.getElementById('heartRate').textContent) + 20), '100/65', Math.max(36.0, parseFloat(document.getElementById('temperature').textContent) + 1.0), Math.max(94, parseInt(document.getElementById('oxygenSat').textContent))); document.getElementById('painScore').textContent = Math.max(0, parseInt(document.getElementById('painScore').textContent) - 4); }
+    else if (drug === 'liothyronine') { message = `Liotironina (T3) administrada (${doseInput} µg) — efecto más rápido en situación crítica.`; updateVitals(Math.min(110, parseInt(document.getElementById('heartRate').textContent) + 18), '100/65', Math.max(36.0, parseFloat(document.getElementById('temperature').textContent) + 0.8), Math.max(94, parseInt(document.getElementById('oxygenSat').textContent))); document.getElementById('painScore').textContent = Math.max(0, parseInt(document.getElementById('painScore').textContent) - 3); }
+    else if (drug === 'glucocorticoids') { message = 'Corticosteroide administrado — útil en manejo de myxedema y posible insuficiencia suprarrenal concomitante.'; updateVitals(Math.min(100, parseInt(document.getElementById('heartRate').textContent) + 8), '100/65', Math.max(36.0, parseFloat(document.getElementById('temperature').textContent) + 0.6), Math.max(94, parseInt(document.getElementById('oxygenSat').textContent))); document.getElementById('painScore').textContent = Math.max(0, parseInt(document.getElementById('painScore').textContent) - 1); }
+    else if (drug === 'passive_warming') { message = 'Medidas de calentamiento pasivo aplicadas — incremento térmico y soporte hemodinámico.'; updateVitals(Math.min(80, parseInt(document.getElementById('heartRate').textContent) + 5), '100/65', Math.max(34.5, parseFloat(document.getElementById('temperature').textContent) + 2.0), Math.max(94, parseInt(document.getElementById('oxygenSat').textContent))); document.getElementById('painScore').textContent = Math.max(0, parseInt(document.getElementById('painScore').textContent) - 1); }
+
+    showAlert('success', message + ` (dosis dentro de rango)`);
+    addSymptom(formatTime(elapsedTime), [`Medicamento administrado (correcto): ${drug} (${doseInput}${rule?rule.unit:''})`, `Mejora temporal de signos y síntomas`] );
+
+  } else {
+    treatmentGivenEffective = false; gameTime = 60; updateTimerUI(); simulationFailed = true; forceHR = 20; document.getElementById('ecgRate').textContent = 20; document.getElementById('heartRate').textContent = 20; showAlert('danger', 'Dosis fuera de rango indicada: tiempo restante reducido a 1 minuto. Bradicardia severa simulada.'); addSymptom(formatTime(elapsedTime), [`Medicamento administrado (FUERA DE RANGO): ${drug} (${doseInput}), penalización aplicada: tiempo = 1 min`]);
+  }
+}
+
+function confirmTreatment() {
+  const diagnosis = document.getElementById('diagnosis').value;
+  const treatment = document.getElementById('definiteTreatment').value;
+  const followUp = document.getElementById('followUp').value;
+  if (!diagnosis || !treatment) { showAlert('warning', 'Complete diagnóstico y tratamiento definitivo.'); return; }
+  const correctDiagnosis = diagnosis === 'hashimoto';
+  const correctTreatment = treatment === 'levothyroxine_replacement' || (treatment === 'iv_support_myxedema' && treatmentGivenEffective);
+  const correctFollowUp = followUp === 'endocrinology_followup';
+  try {
+    if (correctDiagnosis) addScoreEvent('diag_correct','Diagnóstico correcto: Enfermedad de Hashimoto', +30); else addScoreEvent('diag_incorrect','Diagnóstico incorrecto', -20);
+    if (correctTreatment) addScoreEvent('treat_correct','Tratamiento correcto: Reemplazo hormonal / manejo myxedema', +40); else addScoreEvent('treat_incorrect','Tratamiento inapropiado', -30);
+    if (correctFollowUp) addScoreEvent('follow_correct','Seguimiento correcto: Control con endocrinología', +20); else addScoreEvent('follow_incorrect','Seguimiento inadecuado', -10);
+  } catch(e){ console.warn('Scoring failed', e); }
+  stopSimulation(); showResults(correctDiagnosis, correctTreatment, correctFollowUp, diagnosis, treatment, followUp);
+}
+
+function getDiagnosisText(diag) {
+  const diagnoses = {
+    'hashimoto': 'Tiroiditis autoinmune (Hashimoto)', 'iatrogenic': 'Hipotiroidismo iatrogénico', 'subacute_thyroiditis': 'Tiroiditis subaguda', 'central': 'Hipotiroidismo central', 'euthyroid_sick': 'Síndrome del enfermo eutiroideo'
+  };
+  return diagnoses[diag] || 'No seleccionado';
+}
+
+function getTreatmentText(treat) { const treatments = { 'levothyroxine_replacement': 'Reemplazo con Levotiroxina (oral)', 'iv_support_myxedema': 'Soporte IV + Hormonas (myxedema grave)', 'hospitalize_support':'Hospitalización y soporte', 'endocrinology_followup':'Control endocrinólogo y titulación' }; return treatments[treat] || 'No seleccionado'; }
+
+function getFollowUpText(follow) { const followUps = { 'endocrinology_followup': 'Control con endocrinología y TFTs seriadas', 'monitor_24h_obs': 'Observación hospitalaria', 'ambulatory_return': 'Control ambulatorio en 4-6 semanas' }; return followUps[follow] || 'No seleccionado'; }
+
+function getFailureConsequences(correctDiag, correctTreat, correctFollow) { const parts = []; if (!correctDiag) parts.push('Diagnóstico incorrecto: retraso en iniciar reemplazo hormonal.'); if (!correctTreat) parts.push('Tratamiento inapropiado → riesgo de progresión a coma mixedematoso.'); if (!correctFollow) parts.push('Seguimiento inadecuado → descompensación y síntomas persistentes.'); return parts.join(' '); }
+
+function showResults(correctDiag, correctTreat, correctFollow, selDiag, selTreat, selFollow) {
+  const modal = document.getElementById('resultModal'); const modalContent = document.getElementById('modalContent'); const allCorrect = correctDiag && correctTreat && correctFollow;
+  if (!allCorrect) { simulationFailed = true; forceHR = 20; document.getElementById('ecgRate').textContent = 20; document.getElementById('heartRate').textContent = 20; }
+  try {
+    if (correctDiag) addScoreEvent('diag_correct','Diagnóstico correcto: Enfermedad de Hashimoto', +30); else addScoreEvent('diag_incorrect','Diagnóstico incorrecto', -20);
+    if (correctTreat) addScoreEvent('treat_correct','Tratamiento correcto: Reemplazo hormonal / manejo myxedema', +40); else addScoreEvent('treat_incorrect','Tratamiento inapropiado', -30);
+    if (correctFollow) addScoreEvent('follow_correct','Seguimiento correcto: Control con endocrinología', +20); else addScoreEvent('follow_incorrect','Seguimiento inadecuado', -10);
+  } catch(e){ console.warn('Scoring events failed', e); }
+
+  let resultHTML = '';
+  if (allCorrect) {
+    resultHTML = `
+      <div class="success-result">
+        <div class="result-icon">✅</div>
+        <h3>¡CASO EXITOSO!</h3>
+        <p>Manejo clínico óptimo completado</p>
+      </div>
+      <div style="text-align:left;margin:20px 0">
+        <h4>Evaluación:</h4>
+        <p style="color:green">✓ <strong>Diagnóstico correcto:</strong> Enfermedad de Hashimoto</p>
+        <p style="color:green">✓ <strong>Tratamiento correcto:</strong> Reemplazo con levotiroxina / manejo adecuado</p>
+        <p style="color:green">✓ <strong>Seguimiento correcto:</strong> Control con endocrinología</p>
+      </div>
+      <div style="background:#e8f5e8;padding:15px;border-radius:5px;margin:20px 0">
+        <strong>Resultado clínico esperado:</strong><br>
+        Estabilización del paciente con mejoría de síntomas y normalización gradual de hormonas tiroideas.
+      </div>
+    `;
+  } else {
+    resultHTML = `
+      <div class="failure-result">
+        <div class="result-icon">❌</div>
+        <h3>CASO FALLIDO</h3>
+        <p>Manejo clínico subóptimo</p>
+      </div>
+      <div style="text-align:left;margin:20px 0">
+        <h4>Evaluación:</h4>
+        <p style="color:${correctDiag ? 'green' : 'red'}">${correctDiag ? '✓' : '✗'} <strong>Diagnóstico:</strong> ${getDiagnosisText(selDiag)}</p>
+        <p style="color:${correctTreat ? 'green' : 'red'}">${correctTreat ? '✓' : '✗'} <strong>Tratamiento:</strong> ${getTreatmentText(selTreat)}</p>
+        <p style="color:${correctFollow ? 'green' : 'red'}">${correctFollow ? '✓' : '✗'} <strong>Seguimiento:</strong> ${getFollowUpText(selFollow)}</p>
+      </div>
+      <div style="background:#ffeaea;padding:15px;border-radius:5px;margin:20px 0">
+        <strong>Consecuencias del manejo subóptimo:</strong><br>
+        ${getFailureConsequences(correctDiag, correctTreat, correctFollow)}
+      </div>
+    `;
+  }
+  document.getElementById('modalTitle').textContent = allCorrect ? 'Éxito Clínico' : 'Fallo en Manejo'; modalContent.innerHTML = resultHTML; modal.style.display = 'flex';
+}
+
+function endSimulation(reason) { stopSimulation(); simulationFailed = true; forceHR = 20; document.getElementById('ecgRate').textContent = 20; document.getElementById('heartRate').textContent = 20; const modal = document.getElementById('resultModal'); document.getElementById('modalTitle').textContent = 'Finalización de Simulación'; document.getElementById('modalContent').innerHTML = `<div style="padding:10px;background:#fff5f5;border-radius:6px"><strong>${reason}</strong><p>Resultado adverso por manejo o tiempo.</p></div>`; modal.style.display = 'flex'; }
+
+// listeners y arranque
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.ECGSim && typeof window.ECGSim.init === 'function') window.ECGSim.init(); startSimulation(); document.getElementById('administerDrug').addEventListener('click', administerDrug); document.getElementById('submitTreatment').addEventListener('click', confirmTreatment); document.getElementById('newSimBtn').addEventListener('click', () => { document.getElementById('resultModal').style.display = 'none'; startSimulation(); }); const ecgCanvas = document.getElementById('ecgCanvas'); ecgCanvas.addEventListener('click', () => { const paused = document.getElementById('ecgPaused'); if (gameRunning) { stopSimulation(); paused.style.display = 'flex'; } else { startSimulation(); paused.style.display = 'none'; } });
+
+  const drugSel = document.getElementById('drugSelection'); const doseUnitEl = document.getElementById('doseUnit'); const doseInputEl = document.getElementById('drugDose');
+  drugSel.addEventListener('change', () => { const val = drugSel.value; if (doseRules[val]) { doseUnitEl.textContent = doseRules[val].unit || 'µg'; doseInputEl.placeholder = `Dosis en ${doseRules[val].unit}`; if (doseRules[val].unit === 'µg') { doseInputEl.step = 1; doseInputEl.max = 10000; } else { doseInputEl.step = 0.1; doseInputEl.max = 1000; } } else { doseUnitEl.textContent = 'µg'; doseInputEl.placeholder = 'Dosis'; doseInputEl.step = 0.1; } });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const confirmBtn = document.getElementById('confirmLabs');
+  const labCheckboxes = Array.from(document.querySelectorAll('.labCheckbox'));
+  const labStatus = document.getElementById('labStatus');
+  const labResults = document.getElementById('labResults');
+  if (!confirmBtn) return;
+  function getSelected(){ return labCheckboxes.filter(c => c.checked).map(c => c.value); }
+  confirmBtn.addEventListener('click', () => {
+    const sel = getSelected(); labStatus.textContent = sel.length ? `${sel.length} estudio(s) seleccionado(s)` : 'No se seleccionó ningún estudio';
+    if (sel.length === 0){ labResults.style.display = 'none'; labResults.innerHTML = ''; return; }
+    const parts = [];
+    sel.forEach(s => {
+      if (s === 'tsh') { parts.push('<h4>TSH</h4><p>TSH: <strong>Elevada</strong> (sugiere hipotiroidismo).</p>'); }
+      else if (s === 'ft4') { parts.push('<h4>T4 libre</h4><p>T4 libre: <strong>Disminuida</strong> — confirma déficit de hormona tiroidea.</p>'); }
+      else if (s === 'anti_tpo') { parts.push('<h4>Anti-TPO</h4><p>Anti-TPO: <strong>Positivo<\/strong>.</p>'); }
+      else if (s === 'anti_tg') { parts.push('<h4>Anti-tiroglobulina</h4><p>Anti-Tg: Positivo.</p>'); }
+      else if (s === 'ecg') { parts.push('<h4>ECG</h4><p>Hallazgos: bradicardia sinusal / ritmos lentos en progresión.</p>'); }
+    }); labResults.innerHTML = parts.join('<hr>'); labResults.style.display = 'block';
+  });
+});
+</script>
+
+<!-- SCORE: Tenia-style scoring (máx 100) adaptado (no modificar) -->
+<script>
+(function(){
+  if (window.__teniaStyleScoringLoaded) return; window.__teniaStyleScoringLoaded = true;
+  window.simScore = window.simScore || { max: 100, percent: 0, events: {} };
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  const mapping = { 'diag_correct': 40, 'diag_incorrect': -20, 'treat_correct': 40, 'treat_incorrect': -20, 'follow_correct': 20, 'follow_incorrect': -10, 'dx': 40, 'dx_wrong': -20, 'tx': 40, 'tx_wrong': -20, 'lab': 20, 'lab_wrong': -10 };
+  window.addScoreEvent = function(id, label, valuePercent){ try { if (!id) return; window.simScore.events = window.simScore.events || {}; if (window.simScore.events[id]) return; const val = (mapping.hasOwnProperty(id)) ? mapping[id] : (Number(valuePercent) || 0); window.simScore.events[id] = { label: label || id, value: val, time: new Date().toISOString() }; window.simScore.percent = clamp((window.simScore.percent || 0) + val, 0, 100); window.simScore.score = Math.round(window.simScore.percent * (window.simScore.max || 100) / 100); } catch (e) { console.warn('addScoreEvent error', e); } };
+  function safeWrap(name, fn){ var attempts = 0; var maxAttempts = 40; var interval = setInterval(function(){ attempts++; if (typeof window[name] === 'function'){ var orig = window[name]; window[name] = function(){ var res = orig.apply(this, arguments); try { fn.apply(this, arguments); } catch(e) { console.warn('wrap fn error', e); } return res; }; clearInterval(interval); } else if (attempts >= maxAttempts){ window[name] = function(){ try { fn.apply(this, arguments); } catch(e){} }; clearInterval(interval); } }, 120); }
+  safeWrap('showResults', function(){ try { var modalContent = document.getElementById('modalContent') || document.querySelector('.modal-content'); if (modalContent) { var summary = '<div style="text-align:left;margin-top:12px"><h4>Resumen de puntuación</h4><p><strong>' + (window.simScore.score || 0) + ' / ' + (window.simScore.max || 100) + '</strong></p><ul style="padding-left:18px;margin-top:8px">'; Object.keys(window.simScore.events || {}).forEach(function(k){ var e = window.simScore.events[k]; summary += '<li style="margin:6px 0">' + e.label + ': <strong>' + (e.value>=0?'+':'') + e.value + '%</strong></li>'; }); summary += '</ul></div>'; modalContent.innerHTML += summary; } } catch(e){} });
+})();
+</script>
+
+</body>
+</html>

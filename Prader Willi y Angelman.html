@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SIMULADOR CLÍNICO AVANZADO - Síndromes Genéticos: Prader-Willi & Angelman</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui, "Segoe UI", Roboto, sans-serif;background:#f5f6fa;color:#2c3e50;font-size:13px}
+.medical-header{background:linear-gradient(135deg,#2c3e50,#34495e);color:#fff;padding:8px 0;position:fixed;top:0;left:0;right:0;z-index:100}
+.header-content{max-width:1400px;margin:0 auto;padding:0 15px;display:flex;justify-content:space-between;align-items:center}
+.system-title{font-size:1.3em;font-weight:700}
+.timer-bar{position:fixed;top:50px;left:0;right:0;background:#fff;padding:8px 15px;box-shadow:0 1px 4px rgba(0,0,0,0.08);z-index:99;display:flex;justify-content:space-between;align-items:center}
+.main-timer{background:linear-gradient(135deg,#8e44ad,#6a1b9a);color:#fff;padding:8px 15px;border-radius:4px;font-size:1.6em;font-weight:700;font-family:"Courier New",monospace;min-width:120px;text-align:center}
+.main-timer.critical{animation:criticalFlash 1s infinite}
+@keyframes criticalFlash{0%,50%{opacity:1}51%,100%{opacity:.6}}
+.critical-alert{background:#dc3545;color:#fff;padding:6px 12px;border-radius:15px;font-weight:600;font-size:.9em;animation:alertPulse 2s infinite}
+@keyframes alertPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.main-container{margin-top:95px;max-width:1400px;margin-left:auto;margin-right:auto;padding:10px;display:grid;grid-template-columns:1.3fr 1fr;gap:15px;min-height:calc(100vh - 105px)}
+.panel{background:#fff;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.08);display:flex;flex-direction:column;overflow:hidden}
+.panel-header{color:#fff;padding:10px 15px;font-size:1em;font-weight:600}
+.patient-header{background:linear-gradient(135deg,#3498db,#2980b9)}
+.treatment-header{background:linear-gradient(135deg,#8e44ad,#6a1b9a)}
+.panel-content{padding:12px;flex:1;overflow:auto}
+.info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.info-card{background:#f8f9fa;padding:6px;border-radius:4px;text-align:center;border-left:2px solid #3498db}
+.info-label{font-size:.7em;color:#666;text-transform:uppercase;letter-spacing:.3px}
+.info-value{font-size:.85em;font-weight:600;color:#2c3e50;margin-top:1px}
+.patient-visual-container{display:grid;grid-template-columns:140px 1fr;gap:15px;margin:10px 0;height:180px}
+.patient-visual{display:flex;justify-content:center;align-items:center;background:#f8f9fa;border-radius:6px;padding:10px;position:relative}
+.ecg-monitor{background:#000;border-radius:6px;padding:10px;position:relative;border:2px solid #222}
+.ecg-header{color:#00ff00;font-family:"Courier New",monospace;font-size:.8em;text-align:center;margin-bottom:6px}
+.ecg-layer{position:relative;height:120px}
+canvas#ecgCanvas{width:100%;height:120px;background:#000;border-radius:2px;display:block}
+.ecg-info{color:#00ff00;font-family:"Courier New",monospace;font-size:.7em;text-align:center;margin-top:6px}
+.ecg-led{position:absolute;top:8px;right:8px;width:10px;height:10px;border-radius:50%;box-shadow:0 0 6px #00ff00;background:#00ff00}
+.sound-controls{display:flex;gap:8px;align-items:center;margin-top:8px;color:#fff}
+.sound-btn{background:linear-gradient(135deg,#444,#222);padding:6px 8px;border-radius:6px;border:1px solid #666;cursor:pointer;color:#fff}
+.sound-label{font-size:.8em;color:#ddd;margin-right:6px}
+input[type="range"]{appearance:none;height:6px;border-radius:6px;background:#333;outline:none}
+input[type="range"]::-webkit-slider-thumb{appearance:none;width:14px;height:14px;border-radius:50%;background:#00ff66;cursor:pointer;border:2px solid #fff}
+.body-silhouette{width:100px;height:160px;position:relative;display:block}
+.body-part{position:absolute;border:2px solid #34495e;border-radius:4px;transform-origin:center center}
+.head{width:25px;height:30px;background:#f39c12;border-radius:50%;top:0;left:50%;transform:translate(-50%,0)}
+.torso{width:35px;height:50px;background:#f39c12;top:30px;left:50%;transform:translate(-50%,0);border-radius:8px}
+.arm-left,.arm-right{width:12px;height:40px;background:#e67e22;top:35px;border-radius:6px}
+.arm-left{left:10px} .arm-right{right:10px}
+.leg-left,.leg-right{width:14px;height:60px;background:#f39c12;border-radius:6px;bottom:0}
+.leg-left{left:28px} .leg-right{right:28px}
+.compact-vitals{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}
+.vital-compact{background:#000;color:#00ff00;padding:8px;border-radius:4px;font-family:"Courier New",monospace;position:relative;border:1px solid #333;text-align:center}
+.vital-compact.critical{color:#ff0000;border-color:#dc3545;animation:criticalAlarm 1.5s infinite}
+@keyframes criticalAlarm{0%,50%{background:#000}51%,100%{background:#220000}}
+.vital-value-compact{font-size:1.1em;font-weight:700} .vital-label-compact{font-size:.65em;opacity:.8;margin-top:2px}
+.pain-meter-compact{background:linear-gradient(135deg,#9b59b6,#8e44ad);color:#fff;padding:8px;border-radius:4px;text-align:center;margin:8px 0}
+.pain-scale-compact{font-size:1.8em;font-weight:700}
+.symptoms-timeline{background:#f8f9fa;border-radius:4px;padding:8px;margin:8px 0;border-left:3px solid #8e44ad;}
+.symptom-group{margin-bottom:6px;padding:6px;background:#fff;border-radius:3px;border-left:2px solid #dee2e6;opacity:0.95}
+.symptom-group.active{border-left-color:#8e44ad;background:#fff5fb}
+.form-group{margin-bottom:10px} .form-label{display:block;margin-bottom:4px;font-weight:600;color:#34495e;font-size:.85em} .form-control{width:100%;padding:6px 8px;border:1px solid #dee2e6;border-radius:3px;font-size:.8em}
+.btn{background:linear-gradient(135deg,#8e44ad,#6a1b9a);color:#fff;border:0;padding:8px 12px;border-radius:3px;font-size:.8em;font-weight:600;cursor:pointer}
+.btn.urgent{background:linear-gradient(135deg,#dc3545,#8b0000);animation:urgentPulse 2s infinite}
+@keyframes urgentPulse{0%,100%{box-shadow:0 1px 2px rgba(220,53,69,.3)}50%{box-shadow:0 2px 6px rgba(220,53,69,.6)}}
+.pharmacology-alert{padding:8px;border-radius:3px;margin:6px 0;font-size:.75em;font-weight:600}
+.alert-success{background:#ccf2e8;border:1px solid #99e6d1;color:#155724}
+.alert-warning{background:#fff3cd;border:1px solid #ffeaa7;color:#856404}
+.alert-danger{background:#f8d7da;border:1px solid #f5c6cb;color:#721c24}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(44,62,80,.95);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-content{background:#fff;padding:20px;border-radius:6px;max-width:800px;width:90%;max-height:80vh;overflow:auto;text-align:center}
+.success-result{background:linear-gradient(135deg,#27ae60,#229954);color:#fff;padding:15px;border-radius:6px;margin:10px 0}
+.failure-result{background:linear-gradient(135deg,#e74c3e,#c0392b);color:#fff;padding:15px;border-radius:6px;margin:10px 0}
+.result-icon{font-size:3em;margin:10px 0}
+.paused-overlay{position:absolute;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.9);font-weight:700;font-size:1.2em;pointer-events:none}
+.patient-history{background:#fff;padding:8px;border-radius:6px;border:1px solid #e6eef7;margin:10px 0}
+.patient-history h4{margin-bottom:6px;font-size:.9em}
+@media (max-width:900px){ .main-container{grid-template-columns:1fr} .header-content{flex-direction:column;gap:6px} }
+</style>
+</head>
+<body>
+<div class="medical-header">
+  <div class="header-content">
+    <div>
+      <div class="system-title">SIMULADOR CLÍNICO AVANZADO</div>
+      <div style="font-size:.8em;opacity:.9">Genética Clínica | Neurología Pediátrica</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:.8em"></div>
+      <div style="font-size:.7em;opacity:.8"></div>
+    </div>
+  </div>
+</div>
+
+<div class="timer-bar">
+  <div class="main-timer" id="mainTimer">02:00</div>
+  <div style="display:flex;gap:12px;align-items:center">
+    <div style="color:#666;font-size:.9em">Estado: <span id="patientStatus">Evaluación inicial</span></div>
+  </div>
+</div>
+
+<div class="main-container">
+  <div class="panel patient-panel">
+    <div class="panel-header patient-header">MONITOREO DEL PACIENTE</div>
+    <div class="panel-content">
+      <div class="info-grid">
+        <div class="info-card"><div class="info-label">Paciente</div><div class="info-value">Alex Martínez</div></div>
+        <div class="info-card"><div class="info-label">Edad</div><div class="info-value">4 años</div></div>
+        <div class="info-card"><div class="info-label">Peso</div><div class="info-value">18 kg</div></div>
+        <div class="info-card"><div class="info-label">Talla</div><div class="info-value">1.00 m</div></div>
+      </div>
+
+      <div class="patient-visual-container">
+        <div class="patient-visual" id="visualWrap">
+          <div class="body-silhouette" id="patientBody">
+            <div class="body-part head" id="partHead"></div>
+            <div class="body-part torso" id="partTorso"></div>
+            <div class="body-part arm-left" id="partArmL"></div>
+            <div class="body-part arm-right" id="partArmR"></div>
+            <div class="body-part leg-left" id="partLegL"></div>
+            <div class="body-part leg-right" id="partLegR"></div>
+          </div>
+        </div>
+
+        <div class="ecg-monitor" id="ecgMonitor">
+          <div class="ecg-led" id="ecgLed"></div>
+          <div class="ecg-header">EEG / MONITOR</div>
+          <div class="ecg-layer">
+            <canvas id="ecgCanvas" width="800" height="120"></canvas>
+            <div class="paused-overlay" id="ecgPaused" style="display:none">PAUSADO</div>
+          </div>
+          <div class="ecg-info">Frecuencia: <span id="ecgRate">85</span> | Patrón: <span id="ecgRhythm">Basal</span></div>
+
+          <div class="sound-controls" style="position:relative;margin-top:10px">
+            <div class="sound-label">Sonido monitor:</div>
+            <button id="soundToggle" class="sound-btn">Activar</button>
+            <div style="display:flex;align-items:center;margin-left:8px">
+              <input id="soundVolume" type="range" min="0" max="1" step="0.01" value="0.6" style="width:120px" title="Volumen"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pain-meter-compact">
+        <div style="font-size:.8em">INTENSIDAD SÍNTOMAS (hipotonía / hiperfagia / crisis convulsivas)</div>
+        <div class="pain-scale-compact" id="painScore">6</div>
+        <div style="font-size:.7em">Hiperfagia moderada</div>
+      </div>
+
+      <div class="compact-vitals">
+        <div class="vital-compact" id="hrMonitor"><div class="vital-value-compact" id="heartRate">85</div><div class="vital-label-compact">Frecuencia</div></div>
+        <div class="vital-compact" id="bpMonitor"><div class="vital-value-compact" id="bloodPressure">--</div><div class="vital-label-compact">PA (no prioritario)</div></div>
+        <div class="vital-compact" id="tempMonitor"><div class="vital-value-compact" id="temperature">36.6</div><div class="vital-label-compact">TEMP (°C)</div></div>
+        <div class="vital-compact" id="spo2Monitor"><div class="vital-value-compact" id="oxygenSat">98</div><div class="vital-label-compact">SpO₂ (%)</div></div>
+      </div>
+
+      <div class="patient-history" id="patientHistory">
+        <h4>Antecedentes personales</h4>
+        <ul style="margin-left:14px">
+          <li>Hipotonía neonatal y pobre succión en el período neonatal.</li>
+          <li>Retraso del desarrollo del lenguaje y motor.</li>
+          <li>Comienzo de hiperfagia progresiva desde los 2 años.</li>
+          <li>Convulsiones episódicas y risa frecuente/ataxia.</li>
+        </ul>
+      </div>
+
+      <div class="symptoms-timeline">
+        <h4 style="margin-bottom:8px;color:#2c3e50;font-size:.9em">EVOLUCIÓN CLÍNICA</h4>
+        <div id="symptomsContainer">
+          <div class="symptom-group active">
+            <div class="time-stamp">T+00:00 - Evaluación inicial</div>
+            <div class="symptom-list">• Hipotonía infantil, dificultades en la alimentación en la etapa neonatal.<br>• Retraso en hitos motores y del lenguaje.<br>• Hiperfagia incipiente y conductas de búsqueda de alimento.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="panel treatment-panel">
+    <div class="panel-header treatment-header">PROTOCOLO DE MANEJO Y FARMACOLÓGICO (SIMULADO)</div>
+    <div class="panel-content">
+
+      <div class="form-group">
+        <label class="form-label">Selección intervención / farmacológica:</label>
+        <select class="form-control" id="drugSelection">
+          <option value="">-- Seleccionar intervención --</option>
+          <option value="growth_hormone">Terapia con hormona de crecimiento (GH)</option>
+          <option value="anticonvulsant">Anticonvulsivante (valproato/levetiracetam) - control de crisis</option>
+          <option value="melatonin">Melatonina (módulo sueño)</option>
+          <option value="nutritional_plan">Plan nutricional y control de ingestión (estrategias conductuales)</option>
+          <option value="behavioral">Terapia conductual / terapia ocupacional</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="display:flex;gap:8px;align-items:center">
+        <div style="flex:1">
+          <label class="form-label">Dosis / indicador (número):</label>
+          <input class="form-control" id="drugDose" type="number" min="0.1" max="10000" step="0.1" placeholder="Dosis / unidad" />
+        </div>
+        <div style="width:70px;margin-top:22px;text-align:left"><span id="doseUnit">mg</span></div>
+      </div>
+
+      <button class="btn urgent" id="administerDrug">APLICAR INTERVENCIÓN</button>
+      <div id="drugEffects" style="display:none;margin-top:8px"></div>
+
+      <hr style="margin:12px 0;border:1px solid #dee2e6">
+
+      <div class="form-group">
+        <label class="form-label">Diagnóstico Diferencial:</label>
+        <select class="form-control" id="diagnosis">
+        <option value="">-- Seleccionar diagnóstico --</option>
+        <option value="pws">Síndrome de Prader-Willi</option>
+        <option value="angelman">Síndrome de Angelman</option>
+        <option value="taysachs">Síndrome de Tay-Sachs</option>
+        <option value="marfan">Síndrome de Marfan</option>
+        <option value="nf">Neurofibromatosis</option>
+      </select>
+      </div>
+
+      <div class="form-group">
+        <fieldset style="border:1px solid #e6eef7;padding:12px;border-radius:6px;background:#fbfcfe">
+          <legend style="font-weight:700;padding:0 6px">Estudios sugeridos</legend>
+          <div style="display:flex;flex-direction:column;gap:8px;padding-top:6px">
+            <label><input type="checkbox" name="labs" value="methylation" class="labCheckbox"> <strong>Prueba de metilación 15q (methylation)</strong></label>
+            <label><input type="checkbox" name="labs" value="microarray" class="labCheckbox"> <strong>Microarray / CGH</strong></label>
+            <label><input type="checkbox" name="labs" value="ube3a" class="labCheckbox"> <strong>Estudio UBE3A / secuenciación</strong></label>
+            <label><input type="checkbox" name="labs" value="eeg" class="labCheckbox"> <strong>EEG</strong></label>
+            <label><input type="checkbox" name="labs" value="endocrine_gh" class="labCheckbox"> <strong>Evaluación endocrina (GH / IGF-1)</strong></label>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+            <button id="confirmLabs" class="btn">Confirmar estudios</button>
+            <div id="labStatus" style="font-size:.85em;color:#666">Seleccione los estudios y presione confirmar.</div>
+          </div>
+          <div id="labResults" style="margin-top:10px;display:none;background:#fff;padding:10px;border-radius:6px;border:1px solid #e9f3ff"></div>
+        </fieldset>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Manejo multisistémico (Definitivo):</label>
+        <select class="form-control" id="definiteTreatment">
+          <option value="">-- Seleccionar intervención definitiva --</option>
+          <option value="growth_hormone">Terapia con hormona de crecimiento (GH) y seguimiento endocrino</option>
+          <option value="anticonvulsant">Control anticonvulsivante y seguimiento neurológico</option>
+          <option value="multidisciplinary">Manejo multidisciplinario (nutrición, conducta, terapia ocupacional)</option>
+          <option value="genetics_referral">Referencia a genética / consejo genético</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Seguimiento:</label>
+        <select class="form-control" id="followUp">
+          <option value="">-- Seleccionar seguimiento --</option>
+          <option value="endocrinology_followup">Control endocrinológico (crecimiento, GH)</option>
+          <option value="neurology_followup">Control neurológico (EEG, anticonvulsivantes)</option>
+          <option value="nutrition_followup">Seguimiento nutricional y control de peso</option>
+        </select>
+      </div>
+
+      <button class="btn" id="submitTreatment">CONFIRMAR PLAN TERAPÉUTICO</button>
+      <div id="treatmentResponse" style="display:none;margin-top:8px"></div>
+
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="resultModal">
+  <div class="modal-content">
+    <h2 id="modalTitle">Resultado</h2>
+    <div id="modalContent"></div>
+    <button class="btn" id="newSimBtn">Nueva Simulación</button>
+  </div>
+</div>
+
+<script>
+/* Mantenemos la funcionalidad del monitor/EEG tal cual en el simulador base. */
+(function(){
+  const canvas = document.getElementById('ecgCanvas');
+  const ctx = canvas.getContext('2d');
+  const parent = canvas.parentElement;
+  let dpr = window.devicePixelRatio || 1;
+
+  let audioCtx = null;
+  let masterGain = null;
+  let soundEnabled = false;
+  const defaultVolume = 0.6;
+
+  function ensureAudio(){
+    if (!audioCtx){
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = defaultVolume;
+        masterGain.connect(audioCtx.destination);
+      } catch(e){
+        console.warn('AudioContext no soportado', e);
+      }
+    } else if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function setVolume(v){ if (masterGain) masterGain.gain.value = v; }
+
+  function playBeep(){
+    if (!soundEnabled) return;
+    ensureAudio();
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    const o1 = audioCtx.createOscillator();
+    const g1 = audioCtx.createGain();
+    o1.type = 'sine'; o1.frequency.value = 900;
+    g1.gain.setValueAtTime(0, now);
+    g1.gain.linearRampToValueAtTime(0.9, now + 0.002);
+    g1.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    o1.connect(g1); g1.connect(masterGain);
+
+    const o2 = audioCtx.createOscillator();
+    const g2 = audioCtx.createGain();
+    o2.type = 'triangle'; o2.frequency.value = 1300;
+    g2.gain.setValueAtTime(0, now);
+    g2.gain.linearRampToValueAtTime(0.5, now + 0.002);
+    g2.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+    o2.connect(g2); g2.connect(masterGain);
+
+    o1.start(now); o2.start(now); o1.stop(now + 0.1); o2.stop(now + 0.12);
+  }
+
+  let isRunning = false; let raf = null; let ecgStartTime = 0; let lastFrame = 0; let writeX = 0; let ecgData = []; let totalBeats = 0;
+  const ecgPattern = [0,0,0,0.02,0.04,0.08,0.12,0.08,0.03,0,-0.05,-0.12,-0.06,0,0.15,0.8,1.0,0.78,0.28,-0.15,-0.45,-0.18,0.05,0.22,0.14,0.06,0.02,0,0,0,0,0,0];
+  const sampleSpacing = 3;
+
+  function resizeCanvas(){
+    const rect = parent.getBoundingClientRect();
+    const cssW = Math.max(240, Math.floor(rect.width));
+    const cssH = Math.max(80, Math.floor(rect.height));
+    dpr = window.devicePixelRatio || 1;
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const visibleLeft = writeX - cssW;
+    ecgData = ecgData.filter(p => p.x >= visibleLeft - 120);
+  }
+
+  function discreteBPM(secondsElapsed){
+    const minutes = Math.floor(secondsElapsed / 60);
+    return 85 + 25 * minutes; // visual progression preservada
+  }
+
+  function clearCanvas(){ ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width/dpr, canvas.height/dpr); }
+
+  function frame(ts){
+    if (!lastFrame) lastFrame = ts; const dt = (ts - lastFrame) / 1000; lastFrame = ts;
+    if (isRunning){
+      const elapsedSec = (ts - ecgStartTime) / 1000;
+      const hr = (forceHR !== null) ? forceHR : discreteBPM(elapsedSec);
+      const beatInterval = 60 / hr;
+      const pxPerBeat = ecgPattern.length * sampleSpacing;
+      const pixelPerSecond = pxPerBeat / beatInterval;
+      writeX += pixelPerSecond * dt;
+      const expectedBeats = Math.floor(elapsedSec / beatInterval) + 1;
+      while (totalBeats < expectedBeats){
+        const baseX = writeX; const centerY = (canvas.height / dpr) / 2;
+        for (let i=0;i<ecgPattern.length;i++){ const px = baseX + i * sampleSpacing; const vy = centerY + (-ecgPattern[i] * ((canvas.height/dpr) * 0.28)); ecgData.push({x: px, y: vy}); }
+        totalBeats++; try { playBeep(); } catch(e){ console.warn('error playing beep', e); }
+      }
+      const centerY = (canvas.height / dpr) / 2; ecgData.push({x: writeX, y: centerY});
+      const visibleLeft = writeX - (canvas.width / dpr); ecgData = ecgData.filter(p => p.x >= visibleLeft - 80);
+      clearCanvas();
+      if (ecgData.length > 1){ ctx.beginPath(); const offset = writeX - (canvas.width / dpr); ctx.moveTo(ecgData[0].x - offset, ecgData[0].y); for (let i=1;i<ecgData.length;i++){ ctx.lineTo(ecgData[i].x - offset, ecgData[i].y); } ctx.strokeStyle = '#00ff66'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.shadowColor = '#00ff66'; ctx.shadowBlur = 6; ctx.stroke(); ctx.shadowBlur = 0; }
+      document.getElementById('ecgRate').textContent = Math.round(hr);
+      document.getElementById('heartRate').textContent = Math.round(hr);
+      if (hr > 150) document.getElementById('ecgRhythm').textContent = 'Actividad elevada';
+      else if (hr < 60) document.getElementById('ecgRhythm').textContent = 'Actividad baja';
+      else document.getElementById('ecgRhythm').textContent = 'Basal';
+    }
+    raf = requestAnimationFrame(frame);
+  }
+
+  function init(){ resizeCanvas(); window.addEventListener('resize', resizeCanvas); raf = requestAnimationFrame(frame); }
+  function start(){ if (!isRunning){ isRunning = true; ecgStartTime = performance.now(); lastFrame = performance.now(); writeX = 0; ecgData = []; totalBeats = 0; } if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }
+  function stop(){ isRunning = false; }
+  function reset(){ stop(); lastFrame = 0; writeX = 0; ecgData = []; totalBeats = 0; clearCanvas(); document.getElementById('ecgRate').textContent = '85'; document.getElementById('heartRate').textContent = '85'; document.getElementById('ecgRhythm').textContent = 'Basal'; }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('soundToggle'); const vol = document.getElementById('soundVolume');
+    btn.addEventListener('click', () => { if (!soundEnabled){ ensureAudio(); setTimeout(() => { soundEnabled = true; btn.textContent = 'Sonido ON'; btn.style.background = 'linear-gradient(135deg,#0b6623,#0f9d58)'; }, 80); } else { soundEnabled = false; btn.textContent = 'Activar'; btn.style.background = ''; } });
+    vol.addEventListener('input', (e) => { const v = parseFloat(e.target.value); setVolume(v); });
+  });
+  window.ECGSim = { init, start, stop, reset };
+})();
+
+let gameTime = 120; let elapsedTime = 0; let gameRunning = false; let gameTimer = null; let treatmentGivenEffective = false; let simulationFailed = false; let forceHR = null;
+
+function addSymptom(timestamp, symptoms) {
+  const container = document.getElementById('symptomsContainer'); if (!container) return; const div = document.createElement('div'); div.className = 'symptom-group new'; const symptomsHTML = symptoms.map(s => `• ${s}`).join('<br>'); div.innerHTML = `\n    <div class="time-stamp">${timestamp}</div>\n    <div class="symptom-list">${symptomsHTML}</div>\n  `; container.appendChild(div); setTimeout(() => { div.classList.remove('new'); }, 2000);
+}
+
+function updateVitals(hr, bp, temp, spo2) {
+  document.getElementById('heartRate').textContent = hr;
+  document.getElementById('bloodPressure').textContent = bp;
+  document.getElementById('temperature').textContent = (typeof temp === 'number') ? temp.toFixed(1) : temp;
+  document.getElementById('oxygenSat').textContent = spo2;
+
+  const hrEl = document.getElementById('hrMonitor'); const spo2El = document.getElementById('spo2Monitor');
+  if (hr >= 150) hrEl.classList.add('critical'); else hrEl.classList.remove('critical');
+  if (spo2 < 92) spo2El.classList.add('critical'); else spo2El.classList.remove('critical');
+}
+
+function showAlert(type, message) {
+  const effectsDiv = document.getElementById('drugEffects'); effectsDiv.style.display = 'block'; effectsDiv.innerHTML = `<div class="pharmacology-alert alert-${type}">${message}</div>`;
+}
+
+function formatTime(seconds) { const mm = Math.floor(seconds / 60).toString().padStart(2, '0'); const ss = (seconds % 60).toString().padStart(2, '0'); return `T+${mm}:${ss}`; }
+
+function checkTimedEvents() {
+  // Eventos a 0, 24, 48, 72 y 96 segundos (cada 24s)
+  if (elapsedTime === 0) {
+    addSymptom('T+00:00', [
+      'Evaluación por retraso del desarrollo y conductas de búsqueda de alimento',
+      'Hipotonía neonatal reportada y retraso motor',
+      'Signos iniciales: hipotonía y dificultades en el sueño'
+    ]);
+    updateVitals(85, '--', 36.6, 98);
+    document.getElementById('patientStatus').textContent = 'Evaluación inicial';
+  } else if (elapsedTime === 24) {
+    addSymptom('T+00:24', [
+      'Aumento de episodios de llanto inconsolable y conductas alimentarias compulsivas',
+      'Dificultad para el sueño y episodios breves de rigidez'
+    ]);
+    updateVitals(95, '--', 36.8, 98);
+  } else if (elapsedTime === 48) {
+    addSymptom('T+00:48', [
+      'Episodio de crisis convulsiva generalizada o conducta agitada severa',
+      'Alteración del estado general y necesidad de intervención neurológica'
+    ]);
+    updateVitals(130, '--', 37.2, 96);
+    document.getElementById('patientStatus').textContent = 'Evento neurológico - considerar anticonvulsivantes / ingreso';
+  } else if (elapsedTime === 72) {
+    addSymptom('T+01:12', [
+      'Crisis recurrente / desregulación conductual severa',
+      'Riesgo de compromiso clínico por falta de manejo estructurado'
+    ]);
+    updateVitals(150, '--', 37.8, 94);
+    document.getElementById('patientStatus').textContent = 'Complicación: inestabilidad neurológica / conductual';
+  } else if (elapsedTime === 96) {
+    addSymptom('T+01:36', [
+      'Crisis (evento crítico)'
+    ]);
+    // Crisis grave: aumentar frecuencia cardiaca y marcar como fallo inminente
+    updateVitals(220, '--', 38.2, 90);
+    document.getElementById('patientStatus').textContent = 'Crisis crítica - intervención inmediata requerida';
+    simulationFailed = true; forceHR = 220; document.getElementById('ecgRate').textContent = 220; document.getElementById('heartRate').textContent = 220;
+  }
+}
+
+function startSimulation() {
+  gameRunning = true; gameTime = 120; elapsedTime = 0; treatmentGivenEffective = false; simulationFailed = false; forceHR = null;
+  document.getElementById('painScore').textContent = '6'; document.getElementById('patientStatus').textContent = 'Evaluación inicial';
+  const container = document.getElementById('symptomsContainer'); container.innerHTML = `
+    <div class="symptom-group active">
+      <div class="time-stamp">T+00:00 - Evaluación inicial</div>
+      <div class="symptom-list">• Hipotonía infantil y retraso en el desarrollo<br>• Hiperfagia incipiente y conductas alimentarias<br>• Dificultad en el sueño</div>
+    </div>
+  `;
+
+  if (gameTimer) clearInterval(gameTimer);
+  gameTimer = setInterval(() => {
+    if (!gameRunning) return;
+    gameTime--; elapsedTime = 120 - gameTime; updateTimerUI(); checkTimedEvents();
+    if (elapsedTime >= 24 && elapsedTime < 96) {
+      const minT = 36.6, maxT = 37.8; const temp = Math.round((Math.random() * (maxT - minT) + minT) * 10) / 10; const hrEl = document.getElementById('heartRate').textContent; const bpEl = document.getElementById('bloodPressure').textContent; const spo2El = document.getElementById('oxygenSat').textContent; updateVitals(parseInt(hrEl) || 0, bpEl || '--', temp, parseInt(spo2El) || 96);
+    }
+    if (gameTime <= 0) { endSimulation('Tiempo agotado - resultado adverso'); }
+  }, 1000);
+  if (window.ECGSim && typeof window.ECGSim.start === 'function') window.ECGSim.start();
+}
+
+function stopSimulation() { gameRunning = false; if (gameTimer) { clearInterval(gameTimer); gameTimer = null; } if (window.ECGSim && typeof window.ECGSim.stop === 'function') window.ECGSim.stop(); }
+
+function updateTimerUI() {
+  const mm = Math.floor(gameTime / 60).toString().padStart(2, '0'); const ss = (gameTime % 60).toString().padStart(2, '0'); document.getElementById('mainTimer').textContent = `${mm}:${ss}`;
+  if (!simulationFailed && gameTime <= 30) { forceHR = 210; document.getElementById('ecgRate').textContent = 210; document.getElementById('heartRate').textContent = 210; } else if (!simulationFailed) { forceHR = null; }
+  if (gameTime <= 30) document.getElementById('mainTimer').classList.add('critical'); else document.getElementById('mainTimer').classList.remove('critical');
+}
+
+// Reglas simples de dosis / intervención (simuladas)
+const doseRules = {
+  'growth_hormone': {min:0.1, max:5, unit:'mg', note:'dosis diaria simulada según protocolo pediátrico'},
+  'anticonvulsant': {min:10, max:3000, unit:'mg', note:'dosis diaria según elección del fármaco'},
+  'melatonin': {min:1, max:10, unit:'mg', note:'dosis nocturna (simulada)'},
+  'nutritional_plan': {min:1, max:1, unit:'unidad', note:'plan nutricional estructurado (indique 1 para aplicar)'},
+  'behavioral': {min:1, max:1, unit:'unidad', note:'intervención conductual / terapia (indique 1)'}
+};
+
+function administerDrug() {
+  const drug = document.getElementById('drugSelection').value;
+  const doseInput = parseFloat(document.getElementById('drugDose').value);
+  if (!drug || isNaN(doseInput) || doseInput <= 0) { showAlert('warning', 'Seleccione intervención y dosis/unidad válida.'); return; }
+
+  const rule = doseRules[drug]; let doseIsGood = false;
+  if (rule) { if (rule.min === rule.max) doseIsGood = Math.abs(doseInput - rule.min) <= (rule.tol || 0); else doseIsGood = (doseInput >= rule.min && doseInput <= rule.max); }
+
+  if (doseIsGood) {
+    treatmentGivenEffective = true; let message = '';
+    if (drug === 'growth_hormone') { message = `Terapia con GH aplicada (${doseInput} ${rule.unit}) — se simula mejora en crecimiento y tono muscular a mediano plazo.`; document.getElementById('painScore').textContent = Math.max(0, parseInt(document.getElementById('painScore').textContent) - 2); }
+    else if (drug === 'anticonvulsant') { message = `Anticonvulsivante administrado (${doseInput} ${rule.unit}) — control agudo de crisis (simulado).`; document.getElementById('painScore').textContent = Math.max(0, parseInt(document.getElementById('painScore').textContent) - 3); updateVitals(Math.max(60, parseInt(document.getElementById('heartRate').textContent) - 30), '--', 36.8, Math.max(94, parseInt(document.getElementById('oxygenSat').textContent))); }
+    else if (drug === 'melatonin') { message = 'Melatonina administrada — mejora del patrón de sueño (simulado).'; document.getElementById('painScore').textContent = Math.max(0, parseInt(document.getElementById('painScore').textContent) - 1); }
+    else if (drug === 'nutritional_plan') { message = 'Plan nutricional aplicado — reducción de conductas alimentarias (simulado).'; document.getElementById('painScore').textContent = Math.max(0, parseInt(document.getElementById('painScore').textContent) - 2); }
+    else if (drug === 'behavioral') { message = 'Intervención conductual aplicada — mejora en la regulación conductual (simulado).'; document.getElementById('painScore').textContent = Math.max(0, parseInt(document.getElementById('painScore').textContent) - 2); }
+
+    showAlert('success', message + ` (dosis/unidad dentro de rango ${rule.min}${rule.unit}${rule.max===rule.min?'' : ' - ' + rule.max + rule.unit})`);
+    addSymptom(formatTime(elapsedTime), [`Intervención aplicada (correcta): ${drug} (${doseInput}${rule.unit})`, `Mejora temporal de síntomas`] );
+  } else {
+    treatmentGivenEffective = false; gameTime = 60; updateTimerUI(); simulationFailed = true; forceHR = 200; document.getElementById('ecgRate').textContent = 200; document.getElementById('heartRate').textContent = 200; showAlert('danger', 'Intervención fuera de rango indicada: tiempo reducido a 1 minuto. Evaluación adversa.'); addSymptom(formatTime(elapsedTime), [`Intervención (FUERA DE RANGO): ${drug} (${doseInput}), penalización aplicada: tiempo = 1 min`]);
+  }
+}
+
+function confirmTreatment() {
+  const diagnosis = document.getElementById('diagnosis').value;
+  const treatment = document.getElementById('definiteTreatment').value;
+  const followUp = document.getElementById('followUp').value;
+  if (!diagnosis || !treatment) { showAlert('warning', 'Complete diagnóstico y manejo definitivo.'); return; }
+  const correctDiagnosis = (diagnosis === 'pws' || diagnosis === 'angelman');
+  let correctTreatment = false;
+  if (diagnosis === 'pws') correctTreatment = (treatment === 'growth_hormone' || treatment === 'multidisciplinary');
+  if (diagnosis === 'angelman') correctTreatment = (treatment === 'anticonvulsant' || treatment === 'multidisciplinary');
+  const correctFollowUp = (followUp === 'endocrinology_followup' && diagnosis === 'pws') || (followUp === 'neurology_followup' && diagnosis === 'angelman') || followUp === 'nutrition_followup';
+  try {
+    if (correctDiagnosis) addScoreEvent('diag_correct','Diagnóstico correcto (sospecha genética)', +30); else addScoreEvent('diag_incorrect','Diagnóstico incorrecto', -20);
+    if (correctTreatment) addScoreEvent('treat_correct','Tratamiento/gestión apropiada', +40); else addScoreEvent('treat_incorrect','Tratamiento inapropiado', -30);
+    if (correctFollowUp) addScoreEvent('follow_correct','Seguimiento adecuado', +20); else addScoreEvent('follow_incorrect','Seguimiento inadecuado', -10);
+  } catch(e){ console.warn('Scoring failed', e); }
+  stopSimulation(); showResults(correctDiagnosis, correctTreatment, correctFollowUp, diagnosis, treatment, followUp);
+}
+
+function getDiagnosisText(diag) {
+  const diagnoses = {
+    'pws': 'Síndrome de Prader-Willi',
+    'angelman': 'Síndrome de Angelman',
+    'taysachs': 'Síndrome de Tay-Sachs',
+    'marfan': 'Síndrome de Marfan',
+    'nf': 'Neurofibromatosis',
+    'cp': 'Parálisis cerebral',
+    'rtt': 'Síndrome de Rett',
+    'global_dd': 'Retraso global del desarrollo'
+  };
+  return diagnoses[diag] || 'No seleccionado';
+}
+
+function getTreatmentText(treat) { const treatments = { 'growth_hormone': 'Terapia con GH', 'anticonvulsant': 'Anticonvulsivante', 'multidisciplinary': 'Manejo multidisciplinario', 'genetics_referral': 'Referencia a genética' }; return treatments[treat] || 'No seleccionado'; }
+
+function getFollowUpText(follow) { const followUps = { 'endocrinology_followup': 'Control endocrinológico (crecimiento)', 'neurology_followup': 'Control neurológico (EEG / crisis)', 'nutrition_followup': 'Seguimiento nutricional y control de peso' }; return followUps[follow] || 'No seleccionado'; }
+
+function getFailureConsequences(correctDiag, correctTreat, correctFollow) { const parts = []; if (!correctDiag) parts.push('Diagnóstico incorrecto: retraso en el manejo genético y educativo.'); if (!correctTreat) parts.push('Manejo inapropiado → peor control de crisis/hiperfagia o retraso en crecimiento.'); if (!correctFollow) parts.push('Seguimiento inadecuado → riesgo de complicaciones a largo plazo.'); return parts.join(' '); }
+
+function showResults(correctDiag, correctTreat, correctFollow, selDiag, selTreat, selFollow) {
+  const modal = document.getElementById('resultModal'); const modalContent = document.getElementById('modalContent'); const allCorrect = correctDiag && correctTreat && correctFollow;
+  if (!allCorrect) { simulationFailed = true; forceHR = 200; document.getElementById('ecgRate').textContent = 200; document.getElementById('heartRate').textContent = 200; }
+  try {
+    if (correctDiag) addScoreEvent('diag_correct','Diagnóstico correcto (sospecha genética)', +30); else addScoreEvent('diag_incorrect','Diagnóstico incorrecto', -20);
+    if (correctTreat) addScoreEvent('treat_correct','Manejo adecuado', +40); else addScoreEvent('treat_incorrect','Manejo inapropiado', -30);
+    if (correctFollow) addScoreEvent('follow_correct','Seguimiento adecuado', +20); else addScoreEvent('follow_incorrect','Seguimiento inadecuado', -10);
+  } catch(e){ console.warn('Scoring events failed', e); }
+
+  let resultHTML = '';
+  if (allCorrect) {
+    resultHTML = `
+      <div class="success-result">
+        <div class="result-icon">✅</div>
+        <h3>¡CASO EXITOSO!</h3>
+        <p>Manejo clínico óptimo completado</p>
+      </div>
+      <div style="text-align:left;margin:20px 0">
+        <h4>Evaluación:</h4>
+        <p style="color:green">✓ <strong>Diagnóstico correcto:</strong> ${getDiagnosisText(selDiag)}</p>
+        <p style="color:green">✓ <strong>Tratamiento correcto:</strong> ${getTreatmentText(selTreat)}</p>
+        <p style="color:green">✓ <strong>Seguimiento correcto:</strong> ${getFollowUpText(selFollow)}</p>
+      </div>
+      <div style="background:#e8f5e8;padding:15px;border-radius:5px;margin:20px 0">
+        <strong>Resultado clínico esperado:</strong><br>
+        Mejora en control de crisis, crecimiento y conducta si se mantiene el manejo multidisciplinario.
+      </div>
+    `;
+  } else {
+    resultHTML = `
+      <div class="failure-result">
+        <div class="result-icon">❌</div>
+        <h3>CASO FALLIDO</h3>
+        <p>Manejo clínico subóptimo</p>
+      </div>
+      <div style="text-align:left;margin:20px 0">
+        <h4>Evaluación:</h4>
+        <p style="color:${correctDiag ? 'green' : 'red'}">${correctDiag ? '✓' : '✗'} <strong>Diagnóstico:</strong> ${getDiagnosisText(selDiag)}</p>
+        <p style="color:${correctTreat ? 'green' : 'red'}">${correctTreat ? '✓' : '✗'} <strong>Tratamiento:</strong> ${getTreatmentText(selTreat)}</p>
+        <p style="color:${correctFollow ? 'green' : 'red'}">${correctFollow ? '✓' : '✗'} <strong>Seguimiento:</strong> ${getFollowUpText(selFollow)}</p>
+      </div>
+      <div style="background:#ffeaea;padding:15px;border-radius:5px;margin:20px 0">
+        <strong>Consecuencias del manejo subóptimo:</strong><br>
+        ${getFailureConsequences(correctDiag, correctTreat, correctFollow)}
+      </div>
+    `;
+  }
+  document.getElementById('modalTitle').textContent = allCorrect ? 'Éxito Clínico' : 'Fallo en Manejo'; modalContent.innerHTML = resultHTML; modal.style.display = 'flex';
+}
+
+function endSimulation(reason) { stopSimulation(); simulationFailed = true; forceHR = 200; document.getElementById('ecgRate').textContent = 200; document.getElementById('heartRate').textContent = 200; const modal = document.getElementById('resultModal'); document.getElementById('modalTitle').textContent = 'Finalización de Simulación'; document.getElementById('modalContent').innerHTML = `<div style="padding:10px;background:#fff5f5;border-radius:6px"><strong>${reason}</strong><p>Resultado adverso por manejo o tiempo.</p></div>`; modal.style.display = 'flex'; }
+
+// listeners y arranque
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.ECGSim && typeof window.ECGSim.init === 'function') window.ECGSim.init(); startSimulation(); document.getElementById('administerDrug').addEventListener('click', administerDrug); document.getElementById('submitTreatment').addEventListener('click', confirmTreatment); document.getElementById('newSimBtn').addEventListener('click', () => { document.getElementById('resultModal').style.display = 'none'; startSimulation(); }); const ecgCanvas = document.getElementById('ecgCanvas'); ecgCanvas.addEventListener('click', () => { const paused = document.getElementById('ecgPaused'); if (gameRunning) { stopSimulation(); paused.style.display = 'flex'; } else { startSimulation(); paused.style.display = 'none'; } });
+
+  const drugSel = document.getElementById('drugSelection'); const doseUnitEl = document.getElementById('doseUnit'); const doseInputEl = document.getElementById('drugDose');
+  drugSel.addEventListener('change', () => { const val = drugSel.value; if (doseRules[val]) { doseUnitEl.textContent = doseRules[val].unit || 'mg'; doseInputEl.placeholder = `Dosis en ${doseRules[val].unit}`; if (doseRules[val].unit === 'µg') { doseInputEl.step = 1; doseInputEl.max = 10000; } else { doseInputEl.step = 0.1; doseInputEl.max = 10000; } } else { doseUnitEl.textContent = 'mg'; doseInputEl.placeholder = 'Dosis'; doseInputEl.step = 0.1; } });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const confirmBtn = document.getElementById('confirmLabs');
+  const labCheckboxes = Array.from(document.querySelectorAll('.labCheckbox'));
+  const labStatus = document.getElementById('labStatus');
+  const labResults = document.getElementById('labResults');
+  if (!confirmBtn) return;
+  function getSelected(){ return labCheckboxes.filter(c => c.checked).map(c => c.value); }
+  confirmBtn.addEventListener('click', () => {
+    const sel = getSelected(); labStatus.textContent = sel.length ? `${sel.length} estudio(s) seleccionado(s)` : 'No se seleccionó ningún estudio';
+    if (sel.length === 0){ labResults.style.display = 'none'; labResults.innerHTML = ''; return; }
+    const parts = [];
+    sel.forEach(s => {
+      if (s === 'methylation') { parts.push('<h4>Prueba de metilación 15q</h4><p>Resultado: Alteración de metilación en región 15q11-q13.</p>'); }
+      else if (s === 'microarray') { parts.push('<h4>Microarray / CGH</h4><p>Resultado: Microdeleción en 15q11-q13.</p>'); }
+      else if (s === 'ube3a') { parts.push('<h4>Estudio UBE3A / Secuenciación</h4><p>Resultado: Alteración en UBE3A.</p>'); }
+      else if (s === 'eeg') { parts.push('<h4>EEG</h4><p>Hallazgos: Patrón con actividad interictal y ondas lentas de alta amplitud.</p>'); }
+      else if (s === 'endocrine_gh') { parts.push('<h4>Evaluación endocrina (GH / IGF-1)</h4><p>Niveles Bajos</p>'); }
+    }); labResults.innerHTML = parts.join('<hr>'); labResults.style.display = 'block';
+  });
+});
+</script>
+
+<!-- SCORE: Tenia-style scoring (máx 100) adaptado (no modificar) -->
+<script>
+(function(){
+  if (window.__teniaStyleScoringLoaded) return; window.__teniaStyleScoringLoaded = true;
+  window.simScore = window.simScore || { max: 100, percent: 0, events: {} };
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  const mapping = { 'diag_correct': 40, 'diag_incorrect': -20, 'treat_correct': 40, 'treat_incorrect': -20, 'follow_correct': 20, 'follow_incorrect': -10, 'dx': 40, 'dx_wrong': -20, 'tx': 40, 'tx_wrong': -20, 'lab': 20, 'lab_wrong': -10 };
+  window.addScoreEvent = function(id, label, valuePercent){ try { if (!id) return; window.simScore.events = window.simScore.events || {}; if (window.simScore.events[id]) return; const val = (mapping.hasOwnProperty(id)) ? mapping[id] : (Number(valuePercent) || 0); window.simScore.events[id] = { label: label || id, value: val, time: new Date().toISOString() }; window.simScore.percent = clamp((window.simScore.percent || 0) + val, 0, 100); window.simScore.score = Math.round(window.simScore.percent * (window.simScore.max || 100) / 100); } catch (e) { console.warn('addScoreEvent error', e); } };
+  function safeWrap(name, fn){ var attempts = 0; var maxAttempts = 40; var interval = setInterval(function(){ attempts++; if (typeof window[name] === 'function'){ var orig = window[name]; window[name] = function(){ var res = orig.apply(this, arguments); try { fn.apply(this, arguments); } catch(e) { console.warn('wrap fn error', e); } return res; }; clearInterval(interval); } else if (attempts >= maxAttempts){ window[name] = function(){ try { fn.apply(this, arguments); } catch(e){} }; clearInterval(interval); } }, 120); }
+  safeWrap('showResults', function(){ try { var modalContent = document.getElementById('modalContent') || document.querySelector('.modal-content'); if (modalContent) { var summary = '<div style="text-align:left;margin-top:12px"><h4>Resumen de puntuación</h4><p><strong>' + (window.simScore.score || 0) + ' / ' + (window.simScore.max || 100) + '</strong></p><ul style="padding-left:18px;margin-top:8px">'; Object.keys(window.simScore.events || {}).forEach(function(k){ var e = window.simScore.events[k]; summary += '<li style="margin:6px 0">' + e.label + ': <strong>' + (e.value>=0?'+':'') + e.value + '%</strong></li>'; }); summary += '</ul></div>'; modalContent.innerHTML += summary; } } catch(e){} });
+})();
+</script>
+
+</body>
+</html>

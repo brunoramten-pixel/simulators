@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SIMULADOR CLÍNICO AVANZADO - Anemia de Células Falciformes - RESET TIEMPO</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui, "Segoe UI", Roboto, sans-serif;background:#f5f6fa;color:#2c3e50;font-size:13px}
+.medical-header{background:linear-gradient(135deg,#2c3e50,#34495e);color:#fff;padding:8px 0;position:fixed;top:0;left:0;right:0;z-index:100}
+.header-content{max-width:1400px;margin:0 auto;padding:0 15px;display:flex;justify-content:space-between;align-items:center}
+.system-title{font-size:1.3em;font-weight:700}
+.timer-bar{position:fixed;top:50px;left:0;right:0;background:#fff;padding:8px 15px;box-shadow:0 1px 4px rgba(0,0,0,0.08);z-index:99;display:flex;justify-content:space-between;align-items:center}
+.main-timer{background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;padding:8px 15px;border-radius:4px;font-size:1.6em;font-weight:700;font-family:"Courier New",monospace;min-width:120px;text-align:center}
+.main-timer.critical{animation:criticalFlash 1s infinite}
+@keyframes criticalFlash{0%,50%{opacity:1}51%,100%{opacity:.6}}
+.critical-alert{background:#dc3545;color:#fff;padding:6px 12px;border-radius:15px;font-weight:600;font-size:.9em;animation:alertPulse 2s infinite}
+@keyframes alertPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.main-container{margin-top:95px;max-width:1400px;margin-left:auto;margin-right:auto;padding:10px;display:grid;grid-template-columns:1.3fr 1fr;gap:15px;min-height:calc(100vh - 105px)}
+.panel{background:#fff;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.08);display:flex;flex-direction:column;overflow:hidden}
+.panel-header{color:#fff;padding:10px 15px;font-size:1em;font-weight:600}
+.patient-header{background:linear-gradient(135deg,#3498db,#2980b9)}
+.treatment-header{background:linear-gradient(135deg,#27ae60,#229954)}
+.panel-content{padding:12px;flex:1;overflow:auto}
+.info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.info-card{background:#f8f9fa;padding:6px;border-radius:4px;text-align:center;border-left:2px solid #3498db}
+.info-label{font-size:.7em;color:#666;text-transform:uppercase;letter-spacing:.3px}
+.info-value{font-size:.85em;font-weight:600;color:#2c3e50;margin-top:1px}
+.patient-visual-container{display:grid;grid-template-columns:140px 1fr;gap:15px;margin:10px 0;height:180px}
+.patient-visual{display:flex;justify-content:center;align-items:center;background:#f8f9fa;border-radius:6px;padding:10px;position:relative}
+.ecg-monitor{background:#000;border-radius:6px;padding:10px;position:relative;border:2px solid #222}
+.ecg-header{color:#00ff00;font-family:"Courier New",monospace;font-size:.8em;text-align:center;margin-bottom:6px}
+.ecg-layer{position:relative;height:120px}
+canvas#ecgCanvas{width:100%;height:120px;background:#000;border-radius:2px;display:block}
+.ecg-info{color:#00ff00;font-family:"Courier New",monospace;font-size:.7em;text-align:center;margin-top:6px}
+.ecg-led{position:absolute;top:8px;right:8px;width:10px;height:10px;border-radius:50%;box-shadow:0 0 6px #00ff00;background:#00ff00}
+.sound-controls{display:flex;gap:8px;align-items:center;margin-top:8px;color:#fff}
+.sound-btn{background:linear-gradient(135deg,#444,#222);padding:6px 8px;border-radius:6px;border:1px solid #666;cursor:pointer;color:#fff}
+.sound-label{font-size:.8em;color:#ddd;margin-right:6px}
+input[type="range"]{appearance:none;height:6px;border-radius:6px;background:#333;outline:none}
+input[type="range"]::-webkit-slider-thumb{appearance:none;width:14px;height:14px;border-radius:50%;background:#00ff66;cursor:pointer;border:2px solid #fff}
+.body-silhouette{width:100px;height:160px;position:relative;display:block}
+.body-part{position:absolute;border:2px solid #34495e;border-radius:4px;transform-origin:center center}
+.head{width:25px;height:30px;background:#e74c3c;border-radius:50%;top:0;left:50%;transform:translate(-50%,0)}
+.torso{width:35px;height:50px;background:#e74c3c;top:30px;left:50%;transform:translate(-50%,0);border-radius:8px}
+.arm-left,.arm-right{width:12px;height:40px;background:#e74c3c;top:35px;border-radius:6px}
+.arm-left{left:10px} .arm-right{right:10px}
+.leg-left,.leg-right{width:14px;height:60px;background:#e74c3c;border-radius:6px;bottom:0}
+.leg-left{left:28px} .leg-right{right:28px}
+.compact-vitals{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}
+.vital-compact{background:#000;color:#00ff00;padding:8px;border-radius:4px;font-family:"Courier New",monospace;position:relative;border:1px solid #333;text-align:center}
+.vital-compact.critical{color:#ff0000;border-color:#dc3545;animation:criticalAlarm 1.5s infinite}
+@keyframes criticalAlarm{0%,50%{background:#000}51%,100%{background:#220000}}
+.vital-value-compact{font-size:1.1em;font-weight:700} .vital-label-compact{font-size:.65em;opacity:.8;margin-top:2px}
+.pain-meter-compact{background:linear-gradient(135deg,#dc3545,#8b0000);color:#fff;padding:8px;border-radius:4px;text-align:center;margin:8px 0}
+.pain-scale-compact{font-size:1.8em;font-weight:700}
+/* --- cambios: sintomas siempre visibles --- */
+.symptoms-timeline{background:#f8f9fa;border-radius:4px;padding:8px;margin:8px 0;border-left:3px solid #3498db; /* quitar max-height/scroll */}
+.symptom-group{margin-bottom:6px;padding:6px;background:#fff;border-radius:3px;border-left:2px solid #dee2e6;opacity:0.95}
+.symptom-group.active{border-left-color:#e74c3e;background:#fff5f5}
+.form-group{margin-bottom:10px} .form-label{display:block;margin-bottom:4px;font-weight:600;color:#34495e;font-size:.85em} .form-control{width:100%;padding:6px 8px;border:1px solid #dee2e6;border-radius:3px;font-size:.8em}
+.btn{background:linear-gradient(135deg,#27ae60,#229954);color:#fff;border:0;padding:8px 12px;border-radius:3px;font-size:.8em;font-weight:600;cursor:pointer}
+.btn.urgent{background:linear-gradient(135deg,#dc3545,#8b0000);animation:urgentPulse 2s infinite}
+@keyframes urgentPulse{0%,100%{box-shadow:0 1px 2px rgba(220,53,69,.3)}50%{box-shadow:0 2px 6px rgba(220,53,69,.6)}}
+.pharmacology-alert{padding:8px;border-radius:3px;margin:6px 0;font-size:.75em;font-weight:600}
+.alert-success{background:#ccf2e8;border:1px solid #99e6d1;color:#155724}
+.alert-warning{background:#fff3cd;border:1px solid #ffeaa7;color:#856404}
+.alert-danger{background:#f8d7da;border:1px solid #f5c6cb;color:#721c24}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(44,62,80,.95);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-content{background:#fff;padding:20px;border-radius:6px;max-width:800px;width:90%;max-height:80vh;overflow:auto;text-align:center}
+.success-result{background:linear-gradient(135deg,#27ae60,#229954);color:#fff;padding:15px;border-radius:6px;margin:10px 0}
+.failure-result{background:linear-gradient(135deg,#e74c3e,#c0392b);color:#fff;padding:15px;border-radius:6px;margin:10px 0}
+.result-icon{font-size:3em;margin:10px 0}
+.paused-overlay{position:absolute;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.9);font-weight:700;font-size:1.2em;pointer-events:none}
+.patient-history{background:#fff;padding:8px;border-radius:6px;border:1px solid #e6eef7;margin:10px 0}
+.patient-history h4{margin-bottom:6px;font-size:.9em}
+@media (max-width:900px){ .main-container{grid-template-columns:1fr} .header-content{flex-direction:column;gap:6px} }
+</style>
+</head>
+<body>
+<div class="medical-header">
+  <div class="header-content">
+    <div>
+      <div class="system-title">SIMULADOR FARMACOLÓGICO AVANZADO</div>
+      <div style="font-size:.8em;opacity:.9">Escuela de Medicina | Manejo Agudo de Anemia de Células Falciformes</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:.8em"></div>
+      <div style="font-size:.7em;opacity:.8">Protocolo: Crisis vaso-oclusiva / Síndrome torácico agudo</div>
+    </div>
+  </div>
+</div>
+
+<div class="timer-bar">
+  <div class="main-timer" id="mainTimer">05:00</div>
+  <div style="display:flex;gap:12px;align-items:center">
+    <div style="color:#666;font-size:.9em">Estado: <span id="patientStatus">Evaluación inicial</span></div>
+  </div>
+</div>
+
+<div class="main-container">
+  <div class="panel patient-panel">
+    <div class="panel-header patient-header">MONITOREO DEL PACIENTE</div>
+    <div class="panel-content">
+      <div class="info-grid">
+        <div class="info-card"><div class="info-label">Paciente</div><div class="info-value">Fernanda Montes</div></div>
+        <div class="info-card"><div class="info-label">Edad</div><div class="info-value">19 años</div></div>
+        <div class="info-card"><div class="info-label">Peso</div><div class="info-value">68 kg</div></div>
+        <div class="info-card"><div class="info-label">Talla</div><div class="info-value">1.72 m</div></div>
+      </div>
+
+      <div class="patient-visual-container">
+        <div class="patient-visual" id="visualWrap">
+          <div class="body-silhouette" id="patientBody">
+            <div class="body-part head" id="partHead"></div>
+            <div class="body-part torso" id="partTorso"></div>
+            <div class="body-part arm-left" id="partArmL"></div>
+            <div class="body-part arm-right" id="partArmR"></div>
+            <div class="body-part leg-left" id="partLegL"></div>
+            <div class="body-part leg-right" id="partLegR"></div>
+          </div>
+        </div>
+
+        <div class="ecg-monitor" id="ecgMonitor">
+          <div class="ecg-led" id="ecgLed"></div>
+          <div class="ecg-header">ELECTROCARDIOGRAMA</div>
+          <div class="ecg-layer">
+            <canvas id="ecgCanvas" width="800" height="120"></canvas>
+            <div class="paused-overlay" id="ecgPaused" style="display:none">PAUSADO</div>
+          </div>
+          <div class="ecg-info">FC: <span id="ecgRate">85</span> lpm | Ritmo: <span id="ecgRhythm">Sinusal</span></div>
+
+          <div class="sound-controls" style="position:relative;margin-top:10px">
+            <div class="sound-label">Sonido monitor:</div>
+            <button id="soundToggle" class="sound-btn">Activar</button>
+            <div style="display:flex;align-items:center;margin-left:8px">
+              <input id="soundVolume" type="range" min="0" max="1" step="0.01" value="0.6" style="width:120px" title="Volumen"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pain-meter-compact">
+        <div style="font-size:.8em">ESCALA ANÁLOGA VISUAL</div>
+        <div class="pain-scale-compact" id="painScore">9</div>
+        <div style="font-size:.7em">Dolor intenso por crisis vaso-oclusiva</div>
+      </div>
+
+      <div class="compact-vitals">
+        <div class="vital-compact" id="hrMonitor"><div class="vital-value-compact" id="heartRate">90</div><div class="vital-label-compact">FC (lpm)</div></div>
+        <div class="vital-compact" id="bpMonitor"><div class="vital-value-compact" id="bloodPressure">125/80</div><div class="vital-label-compact">PA (mmHg)</div></div>
+        <div class="vital-compact" id="tempMonitor"><div class="vital-value-compact" id="temperature">37.8</div><div class="vital-label-compact">TEMP (°C)</div></div>
+        <div class="vital-compact" id="spo2Monitor"><div class="vital-value-compact" id="oxygenSat">98</div><div class="vital-label-compact">SpO₂ (%)</div></div>
+      </div>
+
+      <!-- Antecedentes añadidos -->
+      <div class="patient-history" id="patientHistory">
+        <h4>Antecedentes personales</h4>
+        <ul style="margin-left:14px">
+          <li>Diagnóstico de Anemia de Células Falciformes desde la infancia</li>
+          <li>Antecedentes de crisis vaso-oclusivas recurrentes (última hace 8 meses)</li>
+          <li>Transfusiones previas (2 unidades hace 1 año)</li>
+          <li>En tratamiento con hidroxiurea intermitente</li>
+        </ul>
+      </div>
+
+      <div class="symptoms-timeline">
+        <h4 style="margin-bottom:8px;color:#2c3e50;font-size:.9em">EVOLUCIÓN CLÍNICA</h4>
+        <div id="symptomsContainer">
+          <div class="symptom-group active">
+            <div class="time-stamp">T+00:00 - Ingreso</div>
+            <div class="symptom-list">• Dolor óseo severo en fémur derecho (EVA: 9/10)<br>• Paciente afebril parcialmente, puede referir fatiga crónica<br>• No expectoración inicial</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="panel treatment-panel">
+    <div class="panel-header treatment-header">PROTOCOLO FARMACOLÓGICO</div>
+    <div class="panel-content">
+      
+
+      <div class="form-group">
+        <label class="form-label">Selección farmacológica:</label>
+        <select class="form-control" id="drugSelection">
+          <option value="">-- Seleccionar fármaco/intervención --</option>
+          <option value="morfina">Morfina (IV)</option>
+          <option value="paracetamol">Paracetamol (acetaminofén)</option>
+          <option value="ketorolaco">Ketorolaco (AINE)</option>
+          <option value="oxigeno">Oxígeno suplementario</option>
+          <option value="simple_transfusion">Transfusión simple (unidad)</option>
+          <option value="exchange_transfusion">Transfusión de intercambio</option>
+          <option value="hydroxyurea">Iniciar/ajustar Hidroxiurea (crónico)</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="display:flex;gap:8px;align-items:center">
+        <div style="flex:1">
+          <label class="form-label">Dosis (número):</label>
+          <input class="form-control" id="drugDose" type="number" min="0.1" max="10000" step="0.1" placeholder="Dosis" />
+        </div>
+        <div style="width:70px;margin-top:22px;text-align:left"><span id="doseUnit">mg</span></div>
+      </div>
+
+      <button class="btn urgent" id="administerDrug">ADMINISTRAR INTERVENCIÓN</button>
+      <div id="drugEffects" style="display:none;margin-top:8px"></div>
+
+      <hr style="margin:12px 0;border:1px solid #dee2e6">
+
+      <div class="form-group">
+        <label class="form-label">Diagnóstico Diferencial:</label>
+        <select class="form-control" id="diagnosis">
+          <option value="">-- Seleccionar diagnóstico --</option>
+          <option value="voc">Crisis vaso-oclusiva (VOC)</option>
+          <option value="acute_chest">Síndrome torácico agudo (ACS)</option>
+          <option value="splenic_sequestration">Secuestro esplénico</option>
+          <option value="aplastic_crisis">Crisis aplásica</option>
+          <option value="infeccion">Infección bacteriana/viral</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <fieldset style="border:1px solid #e6eef7;padding:12px;border-radius:6px;background:#fbfcfe">
+          <legend style="font-weight:700;padding:0 6px">Estudios de laboratorio</legend>
+          <div style="display:flex;flex-direction:column;gap:8px;padding-top:6px">
+            <label><input type="checkbox" name="labs" value="bh" class="labCheckbox"> <strong>Biometría hemática (Hb/Reticulocitos/Leucocitos)</strong></label>
+            <label><input type="checkbox" name="labs" value="ret" class="labCheckbox"> <strong>Recuento de reticulocitos</strong></label>
+            <label><input type="checkbox" name="labs" value="gas" class="labCheckbox"> <strong>Gases arteriales / SatO₂</strong></label>
+            <label><input type="checkbox" name="labs" value="hemol" class="labCheckbox"> <strong>Bilirrubina / LDH / Haptoglobina (hemólisis)</strong></label>
+            <label><input type="checkbox" name="labs" value="cxr" class="labCheckbox"> <strong>Radiografía de tórax</strong></label>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+            <button id="confirmLabs" class="btn">Confirmar estudios de laboratorio</button>
+            <div id="labStatus" style="font-size:.85em;color:#666">Seleccione los estudios y presione confirmar.</div>
+          </div>
+          <div id="labResults" style="margin-top:10px;display:none;background:#fff;padding:10px;border-radius:6px;border:1px solid #e9f3ff"></div>
+        </fieldset>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tratamiento Definitivo:</label>
+        <select class="form-control" id="definiteTreatment">
+          <option value="">-- Seleccionar intervención --</option>
+          <option value="admit_oxygen_iv">Ingresar: Oxígeno + líquidos IV + analgesia fuerte</option>
+          <option value="outpatient_follow">Alta con manejo ambulatorio</option>
+          <option value="simple_transfusion">Transfusión simple (si anemia grave o ACS)</option>
+          <option value="exchange_transfusion">Transfusión de intercambio (ACS severo)</option>
+          <option value="start_hydroxyurea">Iniciar/ajustar Hidroxiurea (crónico)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Seguimiento:</label>
+        <select class="form-control" id="followUp">
+          <option value="">-- Seleccionar seguimiento --</option>
+          <option value="hematology_followup">Control con Hematología (próxima semana)</option>
+          <option value="monitor_inpatient">Monitorización intrahospitalaria (24-72 h)</option>
+          <option value="ambulatory_return">Control ambulatorio en 48-72 h</option>
+        </select>
+      </div>
+
+      <button class="btn" id="submitTreatment">CONFIRMAR PLAN TERAPÉUTICO</button>
+      <div id="treatmentResponse" style="display:none;margin-top:8px"></div>
+
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="resultModal">
+  <div class="modal-content">
+    <h2 id="modalTitle">Resultado</h2>
+    <div id="modalContent"></div>
+    <button class="btn" id="newSimBtn">Nueva Simulación</button>
+  </div>
+</div>
+
+<script>
+/* ECG integrado con sonido: sube 25 lpm cada minuto, parte en 85 lpm.
+   Sonido del monitor: click/beep en cada QRS. Hay control para activar y ajustar volumen.
+*/
+(function(){
+  const canvas = document.getElementById('ecgCanvas');
+  const ctx = canvas.getContext('2d');
+  const parent = canvas.parentElement;
+  let dpr = window.devicePixelRatio || 1;
+
+  // audio
+  let audioCtx = null;
+  let masterGain = null;
+  let soundEnabled = false;
+  const defaultVolume = 0.6;
+
+  function ensureAudio(){ // create/resume audio context on user gesture
+    if (!audioCtx){
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = defaultVolume;
+        masterGain.connect(audioCtx.destination);
+      } catch(e){
+        console.warn('AudioContext no soportado', e);
+      }
+    } else if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function setVolume(v){
+    if (masterGain) masterGain.gain.value = v;
+  }
+
+  function playBeep(){
+    if (!soundEnabled) return;
+    ensureAudio();
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    // short click-like beep: two oscillators for richer sound
+    const o1 = audioCtx.createOscillator();
+    const g1 = audioCtx.createGain();
+    o1.type = 'sine';
+    o1.frequency.value = 900;
+    g1.gain.setValueAtTime(0, now);
+    g1.gain.linearRampToValueAtTime(0.9, now + 0.002);
+    g1.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    o1.connect(g1);
+    g1.connect(masterGain);
+
+    const o2 = audioCtx.createOscillator();
+    const g2 = audioCtx.createGain();
+    o2.type = 'triangle';
+    o2.frequency.value = 1300;
+    g2.gain.setValueAtTime(0, now);
+    g2.gain.linearRampToValueAtTime(0.5, now + 0.002);
+    g2.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+    o2.connect(g2);
+    g2.connect(masterGain);
+
+    o1.start(now);
+    o2.start(now);
+    o1.stop(now + 0.1);
+    o2.stop(now + 0.12);
+  }
+
+  // ECG drawing state
+  let isRunning = false;
+  let raf = null;
+  let ecgStartTime = 0; // timestamp when ECG started
+  let lastFrame = 0;
+  let writeX = 0;
+  let ecgData = [];
+  let totalBeats = 0;
+
+  const ecgPattern = [0,0,0,0.02,0.04,0.08,0.12,0.08,0.03,0,-0.05,-0.12,-0.06,0,0.15,0.8,1.0,0.78,0.28,-0.15,-0.45,-0.18,0.05,0.22,0.14,0.06,0.02,0,0,0,0,0,0];
+  const sampleSpacing = 3;
+
+  function resizeCanvas(){
+    const rect = parent.getBoundingClientRect();
+    const cssW = Math.max(240, Math.floor(rect.width));
+    const cssH = Math.max(80, Math.floor(rect.height));
+    dpr = window.devicePixelRatio || 1;
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const visibleLeft = writeX - cssW;
+    ecgData = ecgData.filter(p => p.x >= visibleLeft - 120);
+  }
+
+  function discreteBPM(secondsElapsed){
+    const minutes = Math.floor(secondsElapsed / 60);
+    return 85 + 25 * minutes;
+  }
+
+  function clearCanvas(){
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,canvas.width/dpr, canvas.height/dpr);
+  }
+
+  function frame(ts){
+    if (!lastFrame) lastFrame = ts;
+    const dt = (ts - lastFrame) / 1000;
+    lastFrame = ts;
+
+    if (isRunning){
+      const elapsedSec = (ts - ecgStartTime) / 1000;
+      // si forceHR tiene valor, lo usamos; en caso contrario calculamos según patrón
+      const hr = (forceHR !== null) ? forceHR : discreteBPM(elapsedSec);
+      const beatInterval = 60 / hr;
+      const pxPerBeat = ecgPattern.length * sampleSpacing;
+      const pixelPerSecond = pxPerBeat / beatInterval;
+      writeX += pixelPerSecond * dt;
+
+      // expected beats since ECG start (use floor to avoid drift)
+      const expectedBeats = Math.floor(elapsedSec / beatInterval) + 1;
+      while (totalBeats < expectedBeats){
+        const baseX = writeX;
+        const centerY = (canvas.height / dpr) / 2;
+        for (let i=0;i<ecgPattern.length;i++){
+          const px = baseX + i * sampleSpacing;
+          const vy = centerY + (-ecgPattern[i] * ((canvas.height/dpr) * 0.28));
+          ecgData.push({x: px, y: vy});
+        }
+        totalBeats++;
+        // play sound for this beat (if enabled)
+        try { playBeep(); } catch(e){ console.warn('error playing beep', e); }
+      }
+
+      const centerY = (canvas.height / dpr) / 2;
+      ecgData.push({x: writeX, y: centerY});
+
+      const visibleLeft = writeX - (canvas.width / dpr);
+      ecgData = ecgData.filter(p => p.x >= visibleLeft - 80);
+
+      clearCanvas();
+      if (ecgData.length > 1){
+        ctx.beginPath();
+        const offset = writeX - (canvas.width / dpr);
+        ctx.moveTo(ecgData[0].x - offset, ecgData[0].y);
+        for (let i=1;i<ecgData.length;i++){
+          ctx.lineTo(ecgData[i].x - offset, ecgData[i].y);
+        }
+        ctx.strokeStyle = '#00ff66';
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.shadowColor = '#00ff66';
+        ctx.shadowBlur = 6;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      // update UI
+      document.getElementById('ecgRate').textContent = Math.round(hr);
+      document.getElementById('heartRate').textContent = Math.round(hr);
+      if (hr > 150) document.getElementById('ecgRhythm').textContent = 'Taquicardia';
+      else if (hr < 60) document.getElementById('ecgRhythm').textContent = 'Bradicardia';
+      else document.getElementById('ecgRhythm').textContent = 'Sinusal';
+    }
+    raf = requestAnimationFrame(frame);
+  }
+
+  function init(){
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    raf = requestAnimationFrame(frame);
+  }
+
+  function start(){
+    if (!isRunning){
+      isRunning = true;
+      ecgStartTime = performance.now();
+      lastFrame = performance.now();
+      writeX = 0;
+      ecgData = [];
+      totalBeats = 0;
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function stop(){ isRunning = false; }
+  function reset(){
+    stop();
+    lastFrame = 0;
+    writeX = 0;
+    ecgData = [];
+    totalBeats = 0;
+    clearCanvas();
+    document.getElementById('ecgRate').textContent = '85';
+    document.getElementById('heartRate').textContent = '85';
+    document.getElementById('ecgRhythm').textContent = 'Sinusal';
+  }
+
+  // sound control UI wiring
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('soundToggle');
+    const vol = document.getElementById('soundVolume');
+    btn.addEventListener('click', () => {
+      if (!soundEnabled){
+        ensureAudio();
+        setTimeout(() => {
+          soundEnabled = true;
+          btn.textContent = 'Sonido ON';
+          btn.style.background = 'linear-gradient(135deg,#0b6623,#0f9d58)';
+        }, 80);
+      } else {
+        soundEnabled = false;
+        btn.textContent = 'Activar';
+        btn.style.background = '';
+      }
+    });
+    vol.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      setVolume(v);
+    });
+  });
+
+  // expose module
+  window.ECGSim = { init, start, stop, reset };
+
+})();
+
+/* Rest of simulation (adaptado a Anemia de Células Falciformes) */
+let gameTime = 300;
+let elapsedTime = 0;
+let gameRunning = false;
+let gameTimer = null;
+let analgesicAdministered = false; // true solo si dosis correcta
+let remainingHalved = false;
+let simulationFailed = false; // se activará si el caso falla
+let forceHR = null; // si no es null, fuerza la frecuencia cardiaca (lpm) en el ECG
+
+function addSymptom(timestamp, symptoms) {
+  const container = document.getElementById('symptomsContainer');
+  if (!container) return;
+  const div = document.createElement('div');
+  div.className = 'symptom-group new';
+  const symptomsHTML = symptoms.map(s => `• ${s}`).join('<br>');
+  div.innerHTML = `\n    <div class="time-stamp">${timestamp}</div>\n    <div class="symptom-list">${symptomsHTML}</div>\n  `;
+  container.appendChild(div);
+  setTimeout(() => { div.classList.remove('new'); }, 2000);
+}
+
+function updateVitals(hr, bp, temp, spo2) {
+  document.getElementById('heartRate').textContent = hr;
+  document.getElementById('bloodPressure').textContent = bp;
+  document.getElementById('temperature').textContent = (typeof temp === 'number') ? temp.toFixed(1) : temp;
+  document.getElementById('oxygenSat').textContent = spo2;
+
+  const hrEl = document.getElementById('hrMonitor');
+  const spo2El = document.getElementById('spo2Monitor');
+  if (hr >= 130) hrEl.classList.add('critical'); else hrEl.classList.remove('critical');
+  if (spo2 < 92) spo2El.classList.add('critical'); else spo2El.classList.remove('critical');
+}
+
+function showAlert(type, message) {
+  const effectsDiv = document.getElementById('drugEffects');
+  effectsDiv.style.display = 'block';
+  effectsDiv.innerHTML = `<div class="pharmacology-alert alert-${type}">${message}</div>`;
+}
+
+function formatTime(seconds) {
+  const mm = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const ss = (seconds % 60).toString().padStart(2, '0');
+  return `T+${mm}:${ss}`;
+}
+
+function checkTimedEvents() {
+  // Eventos temporizados adaptados a un caso de Anemia de Células Falciformes que progresa de VOC a ACS
+  if (elapsedTime === 0) {
+    addSymptom('T+00:00', [
+      'Ingreso por dolor óseo intenso (crisis vaso-oclusiva)',
+      'Dolor localizado en extremidad inferior derecha',
+      'Signos vitales inicialmente estables'
+    ]);
+    updateVitals(90, '125/80', 37.6, 98);
+    document.getElementById('patientStatus').textContent = 'Evaluación inicial - posible crisis vaso-oclusiva';
+  } else if (elapsedTime === 60) {
+    // T+01:00: dolor persistente, fiebre baja, ligera taquicardia
+    addSymptom('T+01:00', [
+      'Dolor persistente a pesar de analgesia oral (si la hubo)',
+      'Inicio de febrícula y tos leve',
+      'Paciente con fatiga y menor tolerancia al esfuerzo'
+    ]);
+    updateVitals(105, '120/78', 38.2, 96);
+  } else if (elapsedTime === 120) {
+    // T+02:00: progresión a síndrome torácico agudo (ACS)
+    addSymptom('T+02:00', [
+      'Dolor torácico nuevo y disnea',
+      'Tos productiva y fiebre',
+      'Descenso de SatO₂ y hallazgos radiológicos compatibles con infiltrado (ACS)'
+    ]);
+    updateVitals(120, '115/70', 38.5, 88);
+    document.getElementById('patientStatus').textContent = 'Síndrome torácico agudo - iniciar O₂ y considerar transfusión';
+    // marcar fallo si no se maneja
+  } else if (elapsedTime === 240) {
+    // T+04:00: insuficiencia respiratoria progresiva
+    addSymptom('T+04:00', [
+      'Progresión: hipoxemia refractaria y aumento del trabajo respiratorio',
+      'Necesidad de soporte ventilatorio posible'
+    ]);
+    updateVitals(150, '90/60', 38.0, 82);
+    document.getElementById('patientStatus').textContent = 'Insuficiencia respiratoria - manejo urgente';
+    simulationFailed = true;
+    forceHR = 150;
+    document.getElementById('ecgRate').textContent = 150;
+    document.getElementById('heartRate').textContent = 150;
+  } else if (elapsedTime === 270) {
+    // Últimos 30s: empeoramiento crítico
+    addSymptom('T+04:30', [
+      'Colapso hemodinámico/respiratorio si no se ha intervenido apropiadamente'
+    ]);
+    updateVitals(40, '70/40', 37.2, 75);
+    document.getElementById('patientStatus').textContent = 'Estado crítico';
+    simulationFailed = true;
+    forceHR = 40;
+    document.getElementById('ecgRate').textContent = 40;
+    document.getElementById('heartRate').textContent = 40;
+  }
+}
+
+function startSimulation() {
+  gameRunning = true;
+  gameTime = 300;
+  elapsedTime = 0;
+  analgesicAdministered = false;
+  remainingHalved = false;
+  document.getElementById('painScore').textContent = '9';
+  document.getElementById('patientStatus').textContent = 'Evaluación inicial';
+  const container = document.getElementById('symptomsContainer');
+  container.innerHTML = `
+    <div class="symptom-group active">
+      <div class="time-stamp">T+00:00 - Ingreso</div>
+      <div class="symptom-list">• Dolor óseo severo (crisis vaso-oclusiva)<br>• Fatiga crónica y antecedentes de transfusiones<br>• Sin signos respiratorios iniciales</div>
+    </div>
+  `;
+
+  if (gameTimer) clearInterval(gameTimer);
+  gameTimer = setInterval(() => {
+    if (!gameRunning) return;
+    gameTime--;
+    elapsedTime = 300 - gameTime;
+    updateTimerUI();
+    checkTimedEvents();
+    // temperatura fluctuante después de T+01:00
+    if (elapsedTime >= 60 && elapsedTime < 270) {
+      const minT = 36.4, maxT = 39.0;
+      const temp = Math.round((Math.random() * (maxT - minT) + minT) * 10) / 10;
+      const hrEl = document.getElementById('heartRate').textContent;
+      const bpEl = document.getElementById('bloodPressure').textContent;
+      const spo2El = document.getElementById('oxygenSat').textContent;
+      updateVitals(parseInt(hrEl) || 0, bpEl || '120/80', temp, parseInt(spo2El) || 95);
+    }
+
+    if (gameTime <= 0) {
+      endSimulation('Tiempo agotado - resultado adverso');
+    }
+  }, 1000);
+
+  if (window.ECGSim && typeof window.ECGSim.start === 'function') window.ECGSim.start();
+}
+
+function stopSimulation() {
+  gameRunning = false;
+  if (gameTimer) { clearInterval(gameTimer); gameTimer = null; }
+  if (window.ECGSim && typeof window.ECGSim.stop === 'function') window.ECGSim.stop();
+}
+
+function updateTimerUI() {
+  const mm = Math.floor(gameTime / 60).toString().padStart(2, '0');
+  const ss = (gameTime % 60).toString().padStart(2, '0');
+  document.getElementById('mainTimer').textContent = `${mm}:${ss}`;
+  // regla adicional: si el tiempo restante llega a 30s y el caso NO ha fallado,
+  // la frecuencia cardiaca debe forzarse a 210 lpm.
+  if (!simulationFailed && gameTime <= 30) {
+    forceHR = 210;
+    document.getElementById('ecgRate').textContent = 210;
+    document.getElementById('heartRate').textContent = 210;
+  } else if (!simulationFailed) {
+    forceHR = null;
+  }
+
+  if (gameTime <= 120) document.getElementById('mainTimer').classList.add('critical'); else document.getElementById('mainTimer').classList.remove('critical');
+} 
+
+// reglas de dosis: rangos adaptados a manejo agudo de crisis falciforme
+const doseRules = {
+  'paracetamol': {min:10, max:15, unit:'mg/kg', note:'dosis total por administración; no exceder 4 g/día en adultos'},
+  'morfina': {min:0.05, max:0.2, unit:'mg/kg', note:'opioide IV; ajuste según respuesta'},
+  'ketorolaco': {min:0.5, max:1, unit:'mg/kg', note:'AINE IV; uso corto plazo'},
+  'oxigeno': {min:1, max:15, unit:'L/min', note:'administrar según SatO₂'},
+  'simple_transfusion': {min:1, max:2, unit:'unidad', note:'transfusión de sangre empaquetada'},
+  'exchange_transfusion': {min:1, max:2, unit:'unidad', note:'transfusión de intercambio (usar criterio hematológico)'},
+  'hydroxyurea': {min:15, max:35, unit:'mg/kg', note:'tratamiento crónico; no alivio inmediato'}
+};
+
+function administerDrug() {
+  const drug = document.getElementById('drugSelection').value;
+  const doseInput = parseFloat(document.getElementById('drugDose').value);
+  if (!drug || isNaN(doseInput) || doseInput <= 0) { showAlert('warning', 'Seleccione fármaco/intervención y dosis válida.'); return; }
+
+  // comprobar si dosis está dentro del rango definido
+  const rule = doseRules[drug];
+  let doseIsGood = false;
+  if (rule) {
+    const tol = rule.tol || 0;
+    if (rule.min === rule.max) {
+      doseIsGood = Math.abs(doseInput - rule.min) <= tol;
+    } else {
+      doseIsGood = (doseInput >= rule.min && doseInput <= rule.max);
+    }
+  }
+
+  if (doseIsGood) {
+    analgesicAdministered = true; // dosis correcta
+    let message = '';
+    let painReduction = 0;
+    if (drug === 'morfina') {
+      message = `Morfina administrada: Opioide - analgesia rápida y efectiva.`;
+      painReduction = Math.round(6 * Math.min(1, doseInput / (rule.max || 0.2)));
+      updateVitals(Math.max(60, parseInt(document.getElementById('heartRate').textContent) - 10), '120/80', 37.0, Math.max(90, parseInt(document.getElementById('oxygenSat').textContent)));
+    } else if (drug === 'paracetamol') {
+      message = 'Paracetamol administrado: Analgesia y antipirético.';
+      painReduction = Math.round(2 * Math.min(1, doseInput / (rule.max || 15)));
+    } else if (drug === 'ketorolaco') {
+      message = 'Ketorolaco administrado: AINE eficaz para dolor moderado-severo.';
+      painReduction = Math.round(3 * Math.min(1, doseInput / (rule.max || 1)));
+    } else if (drug === 'oxigeno') {
+      message = 'Oxígeno suplementario administrado: mejora de la saturación y alivio de hipoxia.';
+      updateVitals(parseInt(document.getElementById('heartRate').textContent), document.getElementById('bloodPressure').textContent, 36.9, Math.min(100, parseInt(document.getElementById('oxygenSat').textContent) + 6));
+      painReduction = 1;
+    } else if (drug === 'simple_transfusion' || drug === 'exchange_transfusion') {
+      message = 'Transfusión administrada: intervención hematológica. Puede mejorar anemia y ACS según necesidad.';
+      // mejora significativa de signos y tiempo
+      updateVitals(Math.max(70, parseInt(document.getElementById('heartRate').textContent) - 15), '120/80', 36.8, Math.max(92, parseInt(document.getElementById('oxygenSat').textContent)));
+      // restablecer tiempo si se administra transfusión adecuada
+      try { window.gameTime = 240; if (typeof updateTimerUI === 'function') updateTimerUI(); window.simulationFailed = false; window.forceHR = null; if (document.getElementById('patientStatus')) document.getElementById('patientStatus').textContent = 'Transfusión administrada — estabilizado temporalmente'; } catch(e){}
+      painReduction = 4;
+    } else if (drug === 'hydroxyurea') {
+      message = 'Hidroxiurea indicada: terapia de fondo (no alivia el dolor inmediato).';
+      painReduction = 0;
+    }
+    const currentPain = parseInt(document.getElementById('painScore').textContent);
+    const newPain = Math.max(0, currentPain - painReduction);
+    document.getElementById('painScore').textContent = newPain;
+    showAlert('success', message + ` (dosis dentro de rango ${rule.min}${rule.unit}${rule.max===rule.min?'' : ' - ' + rule.max + rule.unit})`);
+    addSymptom(formatTime(elapsedTime), [`Intervención administrada (correcta): ${drug} (${doseInput}${rule.unit})`, `Cambio clínico: reducción del dolor ${painReduction} puntos`]);
+  } else {
+    // dosis fuera de rango: penalización inmediata -> tiempo restante = 1 minuto
+    analgesicAdministered = false; // no fue efectiva
+    remainingHalved = true;
+    gameTime = 60;
+    updateTimerUI();
+    simulationFailed = true; // marcar como evento grave
+    forceHR = 200;
+    document.getElementById('ecgRate').textContent = 200;
+    document.getElementById('heartRate').textContent = 200;
+    showAlert('danger', 'Dosis fuera de rango indicada: tiempo restante reducido a 1 minuto. Frecuencia cardiaca aumentada a 200 lpm.');
+    addSymptom(formatTime(elapsedTime), [`Intervención administrada (FUERA DE RANGO): ${drug} (${doseInput}), penalización aplicada: tiempo = 1 min`]);
+  }
+}
+
+function confirmTreatment() {
+  const diagnosis = document.getElementById('diagnosis').value;
+  const treatment = document.getElementById('definiteTreatment').value;
+  const followUp = document.getElementById('followUp').value;
+  if (!diagnosis || !treatment) { showAlert('warning', 'Complete diagnóstico y tratamiento definitivo.'); return; }
+  const correctDiagnosis = diagnosis === 'acute_chest';
+  const correctTreatment = treatment === 'admit_oxygen_iv' || treatment === 'exchange_transfusion';
+  const correctFollowUp = followUp === 'monitor_inpatient';
+  // score events
+  try {
+    if (correctDiagnosis) addScoreEvent('diag_correct','Diagnóstico correcto: Síndrome torácico agudo (ACS)', +30); else addScoreEvent('diag_incorrect','Diagnóstico incorrecto', -20);
+    if (correctTreatment) addScoreEvent('treat_correct','Tratamiento correcto: Oxígeno + líquidos IV y/o transfusión', +40); else addScoreEvent('treat_incorrect','Tratamiento inapropiado', -30);
+    if (correctFollowUp) addScoreEvent('follow_correct','Seguimiento correcto: Monitorización intrahospitalaria', +20); else addScoreEvent('follow_incorrect','Seguimiento inadecuado', -10);
+  } catch(e){ console.warn('Scoring failed', e); }
+  stopSimulation();
+  showResults(correctDiagnosis, correctTreatment, correctFollowUp, diagnosis, treatment, followUp);
+}
+
+function getDiagnosisText(diag) {
+  const diagnoses = {
+    'voc': 'Crisis vaso-oclusiva (VOC)',
+    'acute_chest': 'Síndrome torácico agudo (ACS)',
+    'splenic_sequestration': 'Secuestro esplénico',
+    'aplastic_crisis': 'Crisis aplásica',
+    'infeccion': 'Infección asociada'
+  };
+  return diagnoses[diag] || 'No seleccionado';
+}
+
+
+
+function getTreatmentText(treat) {
+  const treatments = {
+    'admit_oxygen_iv': 'Ingreso: Oxígeno + líquidos IV + analgesia',
+    'outpatient_follow': 'Alta ambulatoria con analgesia domiciliaria',
+    'simple_transfusion': 'Transfusión simple',
+    'exchange_transfusion': 'Transfusión de intercambio'
+  };
+  return treatments[treat] || 'No seleccionado';
+}
+
+
+function getFollowUpText(follow) {
+  const followUps = {
+    'hematology_followup': 'Control con Hematología',
+    'monitor_inpatient': 'Monitorización intrahospitalaria',
+    'ambulatory_return': 'Control ambulatorio en 48-72 h'
+  };
+  return followUps[follow] || 'No seleccionado';
+}
+
+
+function getFailureConsequences(correctDiag, correctTreat, correctFollow) {
+  const parts = [];
+  if (!correctDiag) parts.push('Diagnóstico incorrecto: retraso en intervenciones específicas (ej. transfusión en ACS).');
+  if (!correctTreat) parts.push('Tratamiento inapropiado: progresión a insuficiencia respiratoria o empeoramiento de anemia.');
+  if (!correctFollow) parts.push('Seguimiento inadecuado: riesgo de recaídas y complicaciones respiratorias.');
+  return parts.join(' ');
+}
+
+function showResults(correctDiag, correctTreat, correctFollow, selDiag, selTreat, selFollow) {
+  const modal = document.getElementById('resultModal');
+  const modalContent = document.getElementById('modalContent');
+  const allCorrect = correctDiag && correctTreat && correctFollow;
+  // if the case fails, activate failure state and set HR high
+  if (!allCorrect) {
+    simulationFailed = true;
+    forceHR = 200;
+    document.getElementById('ecgRate').textContent = 200;
+    document.getElementById('heartRate').textContent = 200;
+  }
+
+  // ensure scoring records events (avoid duplicates — addScoreEvent prevents dupes)
+  try {
+    if (correctDiag) addScoreEvent('diag_correct','Diagnóstico correcto: Síndrome torácico agudo (ACS)', +30); else addScoreEvent('diag_incorrect','Diagnóstico incorrecto', -20);
+    if (correctTreat) addScoreEvent('treat_correct','Tratamiento correcto: Oxígeno + líquidos IV y/o transfusión', +40); else addScoreEvent('treat_incorrect','Tratamiento inapropiado', -30);
+    if (correctFollow) addScoreEvent('follow_correct','Seguimiento correcto: Monitorización intrahospitalaria', +20); else addScoreEvent('follow_incorrect','Seguimiento inadecuado', -10);
+  } catch(e){
+    console.warn('Scoring events failed', e);
+  }
+
+  let resultHTML = '';
+  if (allCorrect) {
+    resultHTML = `
+      <div class="success-result">
+        <div class="result-icon">✅</div>
+        <h3>¡CASO EXITOSO!</h3>
+        <p>Manejo clínico óptimo completado</p>
+      </div>
+      <div style="text-align:left;margin:20px 0">
+        <h4>Evaluación:</h4>
+        <p style="color:green">✓ <strong>Diagnóstico correcto:</strong> Síndrome torácico agudo (ACS)</p>
+        <p style="color:green">✓ <strong>Tratamiento correcto:</strong> Oxígeno + líquidos IV y/o transfusión según criterio</p>
+        <p style="color:green">✓ <strong>Seguimiento correcto:</strong> Monitorización intrahospitalaria</p>
+      </div>
+      <div style="background:#e8f5e8;padding:15px;border-radius:5px;margin:20px 0">
+        <strong>Resultado clínico esperado:</strong><br>
+        Estabilización con manejo de soporte (oxígeno, rehidratación, analgesia y transfusión si procede), reducción del riesgo de progresión a insuficiencia respiratoria.
+      </div>
+    `;
+  } else {
+    resultHTML = `
+      <div class="failure-result">
+        <div class="result-icon">❌</div>
+        <h3>CASO FALLIDO</h3>
+        <p>Manejo clínico subóptimo</p>
+      </div>
+      <div style="text-align:left;margin:20px 0">
+        <h4>Evaluación:</h4>
+        <p style="color:${correctDiag ? 'green' : 'red'}">${correctDiag ? '✓' : '✗'} <strong>Diagnóstico:</strong> ${getDiagnosisText(selDiag)}</p>
+        <p style="color:${correctTreat ? 'green' : 'red'}">${correctTreat ? '✓' : '✗'} <strong>Tratamiento:</strong> ${getTreatmentText(selTreat)}</p>
+        <p style="color:${correctFollow ? 'green' : 'red'}">${correctFollow ? '✓' : '✗'} <strong>Seguimiento:</strong> ${getFollowUpText(selFollow)}</p>
+      </div>
+      <div style="background:#ffeaea;padding:15px;border-radius:5px;margin:20px 0">
+        <strong>Consecuencias del manejo subóptimo:</strong><br>
+        ${getFailureConsequences(correctDiag, correctTreat, correctFollow)}
+      </div>
+    `;
+  }
+  document.getElementById('modalTitle').textContent = allCorrect ? 'Éxito Clínico' : 'Fallo en Manejo';
+  modalContent.innerHTML = resultHTML;
+  modal.style.display = 'flex';
+}
+
+function endSimulation(reason) {
+  stopSimulation();
+  simulationFailed = true;
+  forceHR = 200;
+  document.getElementById('ecgRate').textContent = 200;
+  document.getElementById('heartRate').textContent = 200;
+  const modal = document.getElementById('resultModal');
+  document.getElementById('modalTitle').textContent = 'Finalización de Simulación';
+  document.getElementById('modalContent').innerHTML = `<div style="padding:10px;background:#fff5f5;border-radius:6px"><strong>${reason}</strong><p>Resultado adverso por manejo o tiempo.</p></div>`;
+  modal.style.display = 'flex';
+}
+
+// listeners y arranque
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.ECGSim && typeof window.ECGSim.init === 'function') window.ECGSim.init();
+  startSimulation();
+  document.getElementById('administerDrug').addEventListener('click', administerDrug);
+  document.getElementById('submitTreatment').addEventListener('click', confirmTreatment);
+  document.getElementById('newSimBtn').addEventListener('click', () => { document.getElementById('resultModal').style.display = 'none'; startSimulation(); });
+  const ecgCanvas = document.getElementById('ecgCanvas');
+  ecgCanvas.addEventListener('click', () => {
+    const paused = document.getElementById('ecgPaused');
+    if (gameRunning) { stopSimulation(); paused.style.display = 'flex'; }
+    else { startSimulation(); paused.style.display = 'none'; }
+  });
+
+  // actualizar unidad placeholder según intervención seleccionada
+  const drugSel = document.getElementById('drugSelection');
+  const doseUnitEl = document.getElementById('doseUnit');
+  const doseInputEl = document.getElementById('drugDose');
+  drugSel.addEventListener('change', () => {
+    const val = drugSel.value;
+    if (doseRules[val]) {
+      doseUnitEl.textContent = doseRules[val].unit || 'mg';
+      doseInputEl.placeholder = `Dosis en ${doseRules[val].unit}`;
+      if (doseRules[val].unit === 'µg') {
+        doseInputEl.step = 1; // microgramos con paso entero
+        doseInputEl.max = 10000;
+      } else {
+        doseInputEl.step = 0.1;
+        doseInputEl.max = 1000;
+      }
+    } else {
+      doseUnitEl.textContent = 'mg';
+      doseInputEl.placeholder = 'Dosis';
+      doseInputEl.step = 0.1;
+    }
+  });
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const confirmBtn = document.getElementById('confirmLabs');
+  const labCheckboxes = Array.from(document.querySelectorAll('.labCheckbox'));
+  const labStatus = document.getElementById('labStatus');
+  const labResults = document.getElementById('labResults');
+  if (!confirmBtn) return;
+  function getSelected(){
+    return labCheckboxes.filter(c => c.checked).map(c => c.value);
+  }
+  confirmBtn.addEventListener('click', () => {
+    const sel = getSelected();
+    labStatus.textContent = sel.length ? `${sel.length} estudio(s) seleccionado(s)` : 'No se seleccionó ningún estudio';
+    if (sel.length === 0){ labResults.style.display = 'none'; labResults.innerHTML = ''; return; }
+    const parts = [];
+    sel.forEach(s => {
+      if (s === 'bh') {
+        parts.push('<h4>Biometría hemática</h4><p>Hb: 7.2 g/dL — anemia crónica en paciente con células falciformes.<br>Leucocitos: 12.0 x10^3/µL (posible reacción inflamatoria)<br>Reticulocitos: 8% (respuesta hemolítica)</p>');
+      } else if (s === 'ret') {
+        parts.push('<h4>Recuento de reticulocitos</h4><p>Reticulocitos: 8% — indicando hemólisis compensatoria.</p>');
+      } else if (s === 'gas') {
+        parts.push('<h4>Gases arteriales / Oximetría</h4><p>pO₂ disminuida; SatO₂: 88% en ambiente; requiere oxígeno suplementario y evaluación para ACS.</p>');
+      } else if (s === 'hemol') {
+        parts.push('<h4>Marcadores de hemólisis</h4><p>Bilirrubina total: 4.2 mg/dL — elevación indirecta; LDH elevado; haptoglobina baja.</p>');
+      } else if (s === 'cxr') {
+        parts.push('<h4>Radiografía de tórax</h4><p>Infiltrado basal derecho compatible con síndrome torácico agudo (ACS).</p>');
+      }
+    });labResults.innerHTML = parts.join('<hr>');
+    labResults.style.display = 'block';
+  });
+});
+</script>
+
+<!-- SCORE: Tenia-style scoring (máx 100) - mantenemos la mecánica pero con textos adaptados -->
+<script>
+(function(){
+  if (window.__teniaStyleScoringLoaded) return; window.__teniaStyleScoringLoaded = true;
+
+  window.simScore = window.simScore || { max: 100, percent: 0, events: {} };
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  const mapping = {
+    'diag_correct': 40,
+    'diag_incorrect': -20,
+    'treat_correct': 40,
+    'treat_incorrect': -20,
+    'follow_correct': 20,
+    'follow_incorrect': -10,
+    'dx': 40, 'dx_wrong': -20,
+    'tx': 40, 'tx_wrong': -20,
+    'lab': 20, 'lab_wrong': -10
+  };
+
+  window.addScoreEvent = function(id, label, valuePercent){
+    try {
+      if (!id) return;
+      window.simScore.events = window.simScore.events || {};
+      if (window.simScore.events[id]) return;
+      const val = (mapping.hasOwnProperty(id)) ? mapping[id] : (Number(valuePercent) || 0);
+      window.simScore.events[id] = { label: label || id, value: val, time: new Date().toISOString() };
+      window.simScore.percent = clamp((window.simScore.percent || 0) + val, 0, 100);
+      window.simScore.score = Math.round(window.simScore.percent * (window.simScore.max || 100) / 100);
+    } catch (e) { console.warn('addScoreEvent error', e); }
+  };
+
+  function safeWrap(name, fn){
+    var attempts = 0; var maxAttempts = 40;
+    var interval = setInterval(function(){
+      attempts++;
+      if (typeof window[name] === 'function'){
+        var orig = window[name];
+        window[name] = function(){
+          var res = orig.apply(this, arguments);
+          try { fn.apply(this, arguments); } catch(e) { console.warn('wrap fn error', e); }
+          return res;
+        };
+        clearInterval(interval);
+      } else if (attempts >= maxAttempts){
+        window[name] = function(){ try { fn.apply(this, arguments); } catch(e){} };
+        clearInterval(interval);
+      }
+    }, 120);
+  }
+
+  safeWrap('showResults', function(){
+    try {
+      var modalContent = document.getElementById('modalContent') || document.querySelector('.modal-content');
+      if (modalContent) {
+        var summary = (typeof window.getScoreSummaryHTML === 'function') ? window.getScoreSummaryHTML() : '';
+        if (summary && modalContent.innerHTML.indexOf('Puntuación') === -1) modalContent.innerHTML += summary;
+      }
+    } catch(e){}
+  });
+
+  window.getScoreSummaryHTML = function(){
+    const items = Object.keys(window.simScore.events || {}).map(k => {
+      const e = window.simScore.events[k];
+      const sign = (e.value >= 0) ? '+' : '';
+      return `<li style="margin:6px 0">${e.label}: <strong>${sign}${e.value}%</strong></li>`;
+    }).join('');
+    const percent = clamp(window.simScore.percent || 0, 0, 100);
+    const numeric = Math.round(percent * (window.simScore.max || 100) / 100);
+    return `
+<div style="background:#eef5ff;padding:12px;border-radius:6px;margin-top:12px;text-align:left">
+  <h4 style=\"margin-top:0\">Puntuación</h4>
+  <p><strong>${numeric} / ${window.simScore.max}</strong> — <em>${percent}%</em></p>
+  <ul style=\"padding-left:18px;margin-top:8px\">${items || '<li>No se registraron eventos</li>'}</ul>
+</div>
+`;
+  };
+
+})();
+</script>
+
+</body>
+</html>
