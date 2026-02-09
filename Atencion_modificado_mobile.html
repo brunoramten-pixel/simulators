@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Simulación: Psicología de la Atención — Versión Mejorada (modificado)</title>
+<style>
+  :root{
+    --bg-0: #071025; --bg-1: #081426; --card: #071424; --muted:#9fb0c6; --accent: #06b6d4; --accent-2:#7dd3fc;
+    --glass: rgba(255,255,255,0.03); --glass-2: rgba(255,255,255,0.02);
+    --success: #10b981; --danger: #ef4444; --radius: 12px; --max-width:1200px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; color:#e6eef6;
+    background: radial-gradient(1200px 400px at 10% 10%, rgba(6,182,212,0.04), transparent), linear-gradient(180deg,var(--bg-0) 0%, var(--bg-1) 100%);
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; padding:20px; display:flex; justify-content:center;
+  }
+  .wrap{width:100%; max-width:var(--max-width);} 
+  header{display:flex; gap:20px; align-items:center; padding:18px; margin-bottom:18px; border-radius:16px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+  .brand{display:flex; gap:14px; align-items:center}
+  .logo{width:56px; height:56px; border-radius:10px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; font-weight:800; color:#012027}
+  h1{font-size:18px;margin:0}
+  .subtitle{color:var(--muted); font-size:13px}
+
+  nav{margin-left:auto; display:flex; gap:8px; align-items:center}
+  .tab{background:transparent;border:1px solid rgba(255,255,255,0.035); padding:8px 12px; border-radius:10px; color:var(--muted); cursor:pointer; font-weight:600}
+  .tab.active{background:linear-gradient(90deg, rgba(6,182,212,0.09), rgba(125,211,252,0.04)); color:var(--accent); box-shadow:0 4px 14px rgba(6,182,212,0.06)}
+
+  main{display:grid; grid-template-columns:1fr; gap:18px}
+  @media(min-width:980px){ main{grid-template-columns: 1fr 420px;} }
+
+  .panels{display:grid; gap:14px}
+  .panel{background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.006)); padding:16px; border-radius:var(--radius); box-shadow:0 6px 22px rgba(2,6,23,0.5)}
+  .panel h2{margin:0 0 8px 0; font-size:16px}
+  .status{color:var(--muted); font-size:13px}
+  .controls{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap}
+  button.control{background:transparent; border:1px solid rgba(255,255,255,0.04); padding:8px 12px; border-radius:8px; color:var(--muted); cursor:pointer}
+  button.control.primary{background:linear-gradient(90deg,var(--accent),var(--accent-2)); color:#012027; border:none}
+  button.control.warn{background:transparent; border:1px solid rgba(239,68,68,0.12); color:var(--danger)}
+
+  .strobe{height:120px;border-radius:10px; display:flex;align-items:center;justify-content:center; margin-top:12px; cursor:pointer; user-select:none; font-weight:700; transition:all .18s ease; border:1px solid rgba(255,255,255,0.03)}
+  .strobe.small{height:72px}
+  .big{font-size:28px; font-weight:700}
+  .result{margin-top:10px; color:var(--muted); font-weight:600}
+  .explain{font-size:13px; color:var(--muted); margin-top:10px}
+  .grid{display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-top:10px}
+  .cell{background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01)); padding:12px; border-radius:8px; text-align:center; cursor:pointer; user-select:none; border:1px solid rgba(255,255,255,0.02)}
+  .cell.target{background:linear-gradient(90deg,#064e63,#0ea5a5); color:#02131a}
+  .cell.dim{opacity:0.45}
+  .status-row{display:flex; gap:10px; align-items:center; margin-top:8px}
+  .bar{height:12px;background:rgba(255,255,255,0.03); border-radius:999px; overflow:hidden; margin-top:8px}
+  .bar > i{display:block;height:100%; background:linear-gradient(90deg,var(--accent), var(--accent-2)); width:0%; transition:width .3s ease}
+
+  footer.panel{grid-column:1/-1; display:flex; justify-content:space-between; align-items:center}
+  .help{color:var(--muted); font-size:13px}
+  .credits{color:var(--muted); font-size:13px}
+
+  /* small helpers */
+  .muted{color:var(--muted)}
+  .center{display:flex; align-items:center; justify-content:center}
+
+
+/* --- Responsive mobile styles --- */
+@media (max-width: 980px) {
+  body{padding:12px}
+  header{flex-direction:column; align-items:flex-start; gap:12px}
+  nav{margin-left:0; width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:6px}
+  nav::-webkit-scrollbar{display:none}
+  .tab{flex:0 0 auto; padding:10px 14px}
+  main{grid-template-columns:1fr}
+  aside.panel{order:99; width:100%;}
+  .strobe{height:100px}
+  .big{font-size:22px}
+  .grid{grid-template-columns:repeat(4,1fr)}
+  .cell{padding:10px; font-size:15px; min-height:48px; display:flex; align-items:center; justify-content:center}
+  .controls{gap:6px}
+  button.control{padding:12px; font-size:15px; min-height:44px}
+  input[type=number]{font-size:16px; padding:12px}
+}
+@media (max-width: 480px) {
+  header{padding:12px}
+  .logo{width:48px;height:48px}
+  h1{font-size:16px}
+  .subtitle{font-size:12px}
+  .strobe{height:84px}
+  .grid{grid-template-columns:repeat(3,1fr)}
+  .cell{padding:10px; font-size:14px}
+  .tab{padding:8px 10px; font-size:13px}
+  .controls{flex-direction:row; gap:6px}
+  aside.panel{display:none}
+  /* floating summary button */
+  .summary-fab{display:block}
+  .summary-modal{display:flex}
+}
+
+/* default hidden FAB & modal (desktop) */
+.summary-fab{display:none; position:fixed; right:14px; bottom:18px; z-index:1200; border-radius:999px; padding:12px 14px; box-shadow:0 6px 18px rgba(2,6,23,0.5); background:var(--accent); color:#012027; font-weight:700; border:none}
+.summary-modal{display:none; position:fixed; left:0; right:0; top:0; bottom:0; z-index:1300; align-items:center; justify-content:center; background:rgba(0,0,0,0.45)}
+.summary-modal-inner{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:18px; border-radius:12px; width:90%; max-width:420px}
+
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">AT</div>
+        <div>
+          <h1>Simulación: Psicología de la Atención</h1>
+          <div class="subtitle">Módulos interactivos — diseño mejorado, mismo funcionamiento.</div>
+        </div>
+      </div>
+      <nav>
+        <button class="tab active" data-mod="rt">Reacción (RT)</button>
+        <button class="tab" data-mod="search">Búsqueda Visual</button>
+        <button class="tab" data-mod="stroop">Stroop</button>
+        <button class="tab" data-mod="cpt">CPT</button>
+        <button class="tab" data-mod="dual">Dual</button>
+      </nav>
+    </header>
+
+    <main>
+      <div class="panels">
+
+        <section class="panel" id="rt">
+          <h2>1. Tiempo de Reacción (Arousal / Alerta)</h2>
+          <div class="status">Espera a que el panel cambie a <strong>VERDE</strong>, luego haz clic lo más rápido posible.</div>
+          <div id="rtStrobe" class="strobe center" style="background:linear-gradient(90deg,#13233a,#082033)">Haz clic para iniciar</div>
+          <div class="controls">
+            <button id="rtStart" class="control">Iniciar prueba</button>
+            <button id="rtSave" class="control">Guardar resultado</button>
+            <button id="rtReset" class="control warn">Reset</button>
+          </div>
+          <div class="result" id="rtResult">Último RT: —</div>
+          <div class="explain">Mide la latencia de respuesta simple; refleja nivel de alerta/arousal.</div>
+        </section>
+
+        <section class="panel" id="search" style="display:none">
+          <h2>2. Búsqueda Visual (Orientación)</h2>
+          <div class="status">Encuentra el <strong>T</strong> entre <strong>L</strong> lo más rápido posible.</div>
+          <div class="controls">
+            <button id="searchStart" class="control primary">Generar matriz</button>
+            <button id="searchReset" class="control">Reset</button>
+          </div>
+          <div id="searchGrid" class="grid" aria-live="polite"></div>
+          <div class="result" id="searchResult">Tiempo: — | Errores: —</div>
+          <div class="explain">Evalúa orientación y atención selectiva. Útil para prácticas didácticas.</div>
+        </section>
+
+        <section class="panel" id="stroop" style="display:none">
+          <h2>3. Stroop (Atención Selectiva)</h2>
+          <div class="status">Pulsa el botón que indique el significado del color (no del texto).</div>
+          <div id="stroopWord" class="big center" style="margin-top:10px">—</div>
+          <div class="controls" id="stroopButtons"></div>
+          <div class="controls" style="margin-top:8px">
+            <button id="stroopStart" class="control primary">Iniciar 7 ensayos</button>
+            <button id="stroopReset" class="control">Reset</button>
+          </div>
+          <div class="result" id="stroopResult">Aciertos: — | Errores: — | Tiempo medio: —</div>
+          <div class="explain">Conflicto entre lectura automática y control ejecutivo; mide inhibición cognitiva.</div>
+        </section>
+
+        <section class="panel" id="cpt" style="display:none">
+          <h2>4. Prueba de Atención Sostenida (CPT breve)</h2>
+          <div class="status">Presiona la barra espaciadora cuando veas la letra <strong>X</strong>. Duración ~30 estímulos.</div>
+          <div class="controls">
+            <button id="cptStart" class="control primary">Iniciar CPT (30 estímulos)</button>
+            <button id="cptReset" class="control">Reset</button>
+          </div>
+          <div class="result" id="cptResult">Hits: — | Falsos positivos: — | Omisiones: —</div>
+          <div class="bar"><i id="cptBar"></i></div>
+          <div class="explain">Mide la capacidad de mantener la atención y detectar objetivos durante un breve periodo.</div>
+        </section>
+
+        <section class="panel" id="dual" style="display:none">
+          <h2>5. Tarea Dual (Atención Dividida)</h2>
+          <div class="status">Cuenta mentalmente los tonos. Mientras tanto, haz clic en las casillas con número par.</div>
+          <div class="controls">
+            <button id="dualStart" class="control primary">Iniciar (15 seg)</button>
+            <button id="dualReset" class="control">Reset</button>
+          </div>
+          <div id="dualGrid" class="grid" style="margin-top:10px"></div>
+
+          <div id="dualPrompt" style="display:none; margin-top:10px;">
+            <label for="dualInput" class="muted">Introduce cuántos beeps escuchaste:</label>
+            <div style="margin-top:6px; display:flex; gap:8px;">
+              <input id="dualInput" type="number" min="0" style="flex:1; padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:inherit;">
+              <button id="dualSubmit" class="control primary">Enviar</button>
+              <button id="dualCancel" class="control">Cancelar</button>
+            </div>
+          </div>
+
+          <div class="result" id="dualResult">Tu conteo: — | Real: — | Errores visuales: —</div>
+          <div class="explain">Simula dividir recursos entre dos tareas; la performance suele decrecer en una o ambas tareas.</div>
+        </section>
+
+        <section class="panel">
+          <h2>Instrucciones y uso</h2>
+          <ol class="muted" style="padding-left:18px; margin:8px 0 0 0">
+            <li>Realiza cada módulo y registra los resultados. Compara patrones (p. ej. RT alto vs. omisiones en CPT).</li>
+            <li>Para clases: organiza estaciones y rota estudiantes; luego discutan resultados y vínculos teóricos.</li>
+            <li>Este archivo funciona offline. Guarda los resultados con el botón "Guardar" o copia los valores.</li>
+          </ol>
+          <div style="margin-top:10px"><strong class="muted">Créditos:</strong> herramienta educativa — adaptada del material de tu manual.</div>
+        </section>
+
+      </div>
+
+      <aside class="panel" style="height:100%;">
+        <h2>Resumen rápido</h2>
+        <div class="status-row">
+          <div>
+            <div class="muted">RT</div>
+            <div id="summaryRT" class="result">— ms</div>
+          </div>
+          <div>
+            <div class="muted">Búsqueda</div>
+            <div id="summarySearch" class="result">—</div>
+          </div>
+        </div>
+        <div style="margin-top:14px">
+          <button id="downloadAll" class="control primary">Descargar resultados (CSV)</button>
+          <div style="margin-top:8px" class="muted">Puedes exportar resultados individuales desde cada módulo también.</div>
+        </div>
+
+        <hr style="border:none; height:1px; background:rgba(255,255,255,0.02); margin:14px 0">
+        <div class="muted">¿Necesitas versión imprimible con fichas de resultados?</div>
+        <div style="margin-top:10px">
+          <button id="printCards" class="control">Generar fichas imprimibles</button>
+        </div>
+        <div style="height:18px"></div>
+        <div class="credits">Versión mejorada — UI limpia y accesible.</div>
+      </aside>
+
+    </main>
+
+    <footer class="panel" style="margin-top:18px">
+      <div class="help"></div>
+      <div class="credits">© Simulación — Atención</div>
+    </footer>
+
+  <button id="showSummaryFab" class="summary-fab" aria-label="Resumen">Resumen</button>
+<div id="summaryModal" class="summary-modal" role="dialog" aria-hidden="true">
+  <div class="summary-modal-inner">
+    <div style="display:flex; justify-content:flex-end; gap:8px;"><button id="closeSummary" class="control">Cerrar</button></div>
+    <h3 style="margin-top:0">Resumen rápido</h3>
+    <div style="margin-top:8px"><strong>RT:</strong> <span id="modalSummaryRT">— ms</span></div>
+    <div style="margin-top:6px"><strong>Búsqueda:</strong> <span id="modalSummarySearch">—</span></div>
+  </div>
+</div>
+</div>
+
+<script>
+/* --- Mantener la misma lógica funcional; se han preservado los IDs y comportamientos --- */
+
+/* Tab handling (sin cambios funcionales) */
+document.querySelectorAll('button.tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('button.tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const mod = btn.dataset.mod;
+    document.querySelectorAll('main section.panel').forEach(s=>{
+      // los paneles principales tienen id de mod; aside no
+      if(s.id) s.style.display = s.id === mod ? '' : 'none';
+    });
+  });
+});
+
+/* --- Audio setup para beeps (nuevo) --- */
+const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function ensureAudioContext(){
+  if(!AudioContextClass) return null;
+  if(!audioCtx) audioCtx = new AudioContextClass();
+  return audioCtx;
+}
+function playBeep(frequency=800, duration=0.15, volume=0.2){
+  const ctx = ensureAudioContext();
+  if(!ctx) return; // no audio support
+  if(ctx.state === 'suspended') ctx.resume();
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sine';
+  o.frequency.value = frequency;
+  g.gain.value = volume;
+  o.connect(g); g.connect(ctx.destination);
+  o.start();
+  setTimeout(()=>{ try{ o.stop(); }catch(e){} }, duration*1000);
+}
+
+/* --- 1) Reaction Time (igual funcionalidad) */
+(function(){
+  const strobe = document.getElementById('rtStrobe');
+  const startBtn = document.getElementById('rtStart');
+  const saveBtn = document.getElementById('rtSave');
+  const resetBtn = document.getElementById('rtReset');
+  const res = document.getElementById('rtResult');
+  let waiting=false, startTime=0, lastRT=null;
+  function randDelay(){ return 800 + Math.random()*2200; }
+  function setIdle(){ strobe.style.background = "linear-gradient(90deg,#13233a,#082033)"; strobe.textContent = "Haz clic para iniciar"; waiting=false; strobe.classList.remove('too-early'); }
+  strobe.addEventListener('click', ()=>{
+    if(waiting) return;
+    strobe.textContent = "Preparando...";
+    strobe.style.background = "linear-gradient(90deg,#5b6471,#374151)";
+    waiting=true;
+    const d = randDelay();
+    setTimeout(()=>{
+      startTime = Date.now();
+      strobe.textContent = "¡AHORA! haz clic";
+      strobe.style.background = "linear-gradient(90deg,#059669,#10b981)";
+    }, d);
+  });
+  strobe.addEventListener('mouseup', ()=>{
+    if(!waiting) return;
+    const now = Date.now();
+    if(startTime && startTime>0 && now>=startTime){
+      const rt = now - startTime;
+      lastRT = rt;
+      res.textContent = "Último RT: " + rt + " ms";
+      startTime = 0; waiting=false; setIdle();
+      document.getElementById('summaryRT').textContent = rt + ' ms';
+    } else {
+      res.textContent = "Clic anticipado (haz esperar y vuelve a intentar)";
+      waiting=false; startTime=0; strobe.style.background = "linear-gradient(90deg,#7f1d1d,#ef4444)";
+      setTimeout(setIdle,800);
+    }
+  });
+  startBtn.addEventListener('click', ()=> strobe.click());
+  saveBtn.addEventListener('click', ()=>{
+    if(lastRT==null) return alert('No hay resultado para guardar. Haz la prueba primero.');
+    const txt = 'RT_ms,'+lastRT;
+    const blob = new Blob([txt],{type:'text/plain'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'rt_result.txt'; a.click();
+  });
+  resetBtn.addEventListener('click', ()=>{ lastRT=null; res.textContent = "Último RT: —"; setIdle(); document.getElementById('summaryRT').textContent='— ms'; });
+  setIdle();
+})();
+
+/* --- 2) Visual search (igual funcionalidad) */
+(function(){
+  const grid = document.getElementById('searchGrid');
+  const gen = document.getElementById('searchStart');
+  const reset = document.getElementById('searchReset');
+  const result = document.getElementById('searchResult');
+  let startTime=0, errors=0, running=false, lastTime=null;
+  function makeGrid(){
+    grid.innerHTML=''; errors=0;
+    const total=36; const targetIndex = Math.floor(Math.random()*total);
+    const letters = new Array(total).fill('L'); letters[targetIndex]='T';
+    letters.forEach((ch,i)=>{
+      const d = document.createElement('div'); d.className='cell'; d.textContent = ch;
+      if(i===targetIndex) d.classList.add('target');
+      d.addEventListener('click', ()=>{
+        if(!running) return;
+        if(i===targetIndex){ const ms = Date.now()-startTime; lastTime = ms; result.textContent = 'Tiempo: ' + ms + ' ms | Errores: ' + errors; running=false; document.getElementById('summarySearch').textContent = ms + ' ms'; }
+        else { errors++; d.classList.add('dim'); }
+      });
+      grid.appendChild(d);
+    });
+    startTime = Date.now(); running=true; result.textContent = 'Tiempo: — | Errores: 0';
+  }
+  gen.addEventListener('click', makeGrid);
+  reset.addEventListener('click', ()=>{ grid.innerHTML=''; result.textContent='Tiempo: — | Errores: —'; running=false; errors=0; document.getElementById('summarySearch').textContent='—'; });
+})();
+
+/* --- 3) Stroop (igual) */
+(function(){
+  const word = document.getElementById('stroopWord');
+  const buttons = document.getElementById('stroopButtons');
+  const start = document.getElementById('stroopStart');
+  const reset = document.getElementById('stroopReset');
+  const res = document.getElementById('stroopResult');
+  const colors = ['rojo','verde','azul','amarillo'];
+  const colorMap = {rojo:'#ef4444', verde:'#10b981', azul:'#3b82f6', amarillo:'#f59e0b'};
+  let trials = [], current=0, correct=0, wrong=0, times=[];
+  function makeTrial(){ const wordText = colors[Math.floor(Math.random()*colors.length)]; let colorText = colors[Math.floor(Math.random()*colors.length)]; return {word:wordText, color:colorText}; }
+  function renderButtons(){ buttons.innerHTML=''; colors.forEach(c=>{ const b = document.createElement('button'); b.textContent = c; b.className='control'; b.style.padding='8px 12px'; b.addEventListener('click', ()=> handleResponse(c)); buttons.appendChild(b); }); }
+  function handleResponse(choice){ if(current>=trials.length) return; const t = trials[current]; const ok = (choice===t.color); if(ok) correct++; else wrong++; times.push(Date.now()-t.start); current++; if(current<trials.length) showTrial(current); else finish(); }
+  function showTrial(i){ const t = trials[i]; word.textContent = t.word; word.style.color = colorMap[t.color]; t.start = Date.now(); }
+  function finish(){ const mean = times.length? Math.round(times.reduce((a,b)=>a+b,0)/times.length):0; res.textContent = 'Aciertos: ' + correct + ' | Errores: ' + wrong + ' | Tiempo medio: ' + mean + ' ms'; word.textContent = '—'; word.style.color = '#fff'; }
+  start.addEventListener('click', ()=>{ trials=[]; for(let i=0;i<7;i++) trials.push(makeTrial()); current=0; correct=0; wrong=0; times=[]; renderButtons(); showTrial(0); res.textContent='Aciertos: 0 | Errores: 0 | Tiempo medio: —'; });
+  reset.addEventListener('click', ()=>{ trials=[]; current=0; correct=0; wrong=0; times=[]; word.textContent='—'; buttons.innerHTML=''; res.textContent='Aciertos: — | Errores: — | Tiempo medio: —' });
+  renderButtons();
+})();
+
+/* --- 4) CPT (igual) */
+(function(){
+  const start = document.getElementById('cptStart');
+  const reset = document.getElementById('cptReset');
+  const res = document.getElementById('cptResult');
+  const bar = document.getElementById('cptBar');
+  let listening=false, hits=0, falsePos=0, omissions=0, total=30, idx=0, target='X';
+  function genSequence(n){ const seq=[]; for(let i=0;i<n;i++){ if(Math.random() < 0.2) seq.push(target); else seq.push(String.fromCharCode(65 + Math.floor(Math.random()*26))); } return seq; }
+  let sequence=[];
+  function keyHandler(e){ if(!listening) return; if(e.code==='Space'){ const now = sequence[idx-1] === target; if(now) { hits++; } else { falsePos++; } } }
+  function run(){ sequence = genSequence(total); idx=0; hits=0; falsePos=0; omissions=0; listening=true; document.addEventListener('keydown', keyHandler); const interval = 900; const step = setInterval(()=>{ if(idx>=sequence.length){ clearInterval(step); listening=false; document.removeEventListener('keydown', keyHandler); omissions = sequence.filter(s=>s===target).length - hits; res.textContent = 'Hits: ' + hits + ' | Falsos positivos: ' + falsePos + ' | Omisiones: ' + omissions; bar.style.width = '100%'; return; }
+    const stim = sequence[idx]; res.textContent = 'Presentando: ' + stim + ' (' + (idx+1) + '/' + sequence.length + ')'; bar.style.width = Math.round((idx/sequence.length)*100) + '%'; idx++; }, interval); }
+  start.addEventListener('click', run);
+  reset.addEventListener('click', ()=>{ listening=false; document.removeEventListener('keydown', keyHandler); res.textContent='Hits: — | Falsos positivos: — | Omisiones: —'; bar.style.width='0%'});
+})();
+
+/* --- 5) Dual task (modificado: interfaz de entrada para el conteo + sonido) */
+(function(){
+  const start = document.getElementById('dualStart');
+  const reset = document.getElementById('dualReset');
+  const grid = document.getElementById('dualGrid');
+  const result = document.getElementById('dualResult');
+  const promptDiv = document.getElementById('dualPrompt');
+  const input = document.getElementById('dualInput');
+  const submitBtn = document.getElementById('dualSubmit');
+  const cancelBtn = document.getElementById('dualCancel');
+  let realBeeps=0, userCount=null, clicks=0;
+  let timeouts = [];
+  function clearAllTimeouts(){ timeouts.forEach(t=>clearTimeout(t)); timeouts = []; }
+  function makeGrid(){ grid.innerHTML=''; for(let i=0;i<36;i++){ const n = 1 + Math.floor(Math.random()*99); const d = document.createElement('div'); d.className='cell'; d.textContent = n; d.addEventListener('click', ()=>{ if(d.dataset.clicked) return; d.dataset.clicked = '1'; d.classList.add('dim'); const isEven = (n%2===0); if(!isEven) { clicks++; } }); grid.appendChild(d); } }
+  function beep(){ realBeeps++; playBeep(); }
+  function run(){
+    // preparar
+    makeGrid(); realBeeps=0; clicks=0; userCount=null; result.textContent='Tu conteo: — | Real: — | Errores visuales: —';
+    // ocultar prompt si estaba visible
+    promptDiv.style.display = 'none'; input.value='';
+    const duration = 15000; // 15s
+    // programar 6 beeps en momentos aleatorios dentro de duration
+    const beepsCount = 6;
+    const intervals = [];
+    for(let t=0; t<beepsCount; t++){ intervals.push(Math.random()*duration); }
+    intervals.forEach(ms=>{
+      const id = setTimeout(()=>{
+        beep();
+        // efecto visual breve
+        const hdr = document.querySelector('header');
+        hdr.style.outline='3px solid rgba(6,182,212,0.18)';
+        setTimeout(()=>hdr.style.outline='none',120);
+      }, ms);
+      timeouts.push(id);
+    });
+    // al terminar, mostrar prompt en la UI (no prompt() nativo)
+    const endId = setTimeout(()=>{
+      promptDiv.style.display = '';
+      input.focus();
+    }, duration + 250);
+    timeouts.push(endId);
+  }
+  // enviar respuesta
+  function submitAnswer(){
+    const user = parseInt(input.value);
+    userCount = isNaN(user)?0:user;
+    result.textContent = 'Tu conteo: ' + userCount + ' | Real: ' + realBeeps + ' | Errores visuales (clicks en impares): ' + clicks;
+    promptDiv.style.display = 'none';
+    clearAllTimeouts();
+  }
+  function cancelAnswer(){
+    promptDiv.style.display = 'none';
+    result.textContent = 'Tu conteo: — | Real: ' + realBeeps + ' | Errores visuales (clicks en impares): ' + clicks;
+    clearAllTimeouts();
+  }
+  submitBtn.addEventListener('click', submitAnswer);
+  cancelBtn.addEventListener('click', cancelAnswer);
+  start.addEventListener('click', run);
+  reset.addEventListener('click', ()=>{ grid.innerHTML=''; result.textContent='Tu conteo: — | Real: — | Errores visuales: —'; realBeeps=0; clicks=0; userCount=null; promptDiv.style.display='none'; input.value=''; clearAllTimeouts(); });
+})();
+
+/* Export simple CSV from summary values */
+document.getElementById('downloadAll').addEventListener('click', ()=>{
+  const rt = document.getElementById('summaryRT').textContent || '—';
+  const search = document.getElementById('summarySearch').textContent || '—';
+  const lines = ['metric,value','RT,'+rt,'Search,'+search];
+  const blob = new Blob([lines.join('\n')],{type:'text/csv'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'atencion_resumen.csv'; a.click();
+});
+
+/* Print cards placeholder (simple printable window) */
+document.getElementById('printCards').addEventListener('click', ()=>{
+  const win = window.open('', '_blank');
+  const rt = document.getElementById('summaryRT').textContent || '—';
+  const search = document.getElementById('summarySearch').textContent || '—';
+  win.document.write('<html><head><title>Fichas imprimibles</title><style>body{font-family:Arial;padding:20px;color:#001} .card{border:1px solid #ccc;padding:12px;margin-bottom:10px;border-radius:8px}</style></head><body>');
+  win.document.write('<h2>Resultados — Fichas</h2>');
+  win.document.write('<div class="card"><strong>RT:</strong><div>'+rt+'</div></div>');
+  win.document.write('<div class="card"><strong>Búsqueda visual:</strong><div>'+search+'</div></div>');
+  win.document.write('</body></html>'); win.document.close(); win.print();
+});
+
+/* accessibility: prevent page scroll on space when CPT running (small safe guard) */
+document.addEventListener('keydown', function(e){ if(e.code==='Space') e.preventDefault(); });
+
+// Mobile summary FAB behavior
+(function(){
+  const fab = document.getElementById('showSummaryFab');
+  const modal = document.getElementById('summaryModal');
+  const closeBtn = document.getElementById('closeSummary');
+  const modalRT = document.getElementById('modalSummaryRT');
+  const modalSearch = document.getElementById('modalSummarySearch');
+  function updateModal(){ modalRT.textContent = document.getElementById('summaryRT').textContent || '— ms'; modalSearch.textContent = document.getElementById('summarySearch').textContent || '—'; }
+  function showModal(){ updateModal(); modal.setAttribute('aria-hidden','false'); modal.style.display='flex'; }
+  function hideModal(){ modal.setAttribute('aria-hidden','true'); modal.style.display='none'; }
+  if(fab && modal){
+    fab.addEventListener('click', showModal);
+    closeBtn.addEventListener('click', hideModal);
+    // update values when summary changes
+    const obs = new MutationObserver(updateModal);
+    const summaryRT = document.getElementById('summaryRT');
+    const summarySearch = document.getElementById('summarySearch');
+    if(summaryRT) obs.observe(summaryRT, {childList:true, subtree:true});
+    if(summarySearch) obs.observe(summarySearch, {childList:true, subtree:true});
+    // show/hide fab depending on viewport size
+    function adapt(){ if(window.innerWidth <= 480) fab.style.display='block'; else fab.style.display='none'; }
+    window.addEventListener('resize', adapt); adapt();
+  }
+})();
+</script>
+</body>
+</html>
